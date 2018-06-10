@@ -21,7 +21,7 @@ named!(
     parse_with_meta<CompleteStr, LispVal>,
     do_parse!(
         spaces
-            >> first: one_of!("^")
+            >> one_of!("^")
             >> rest: many1!(parse_expr)
             >> ({
                 let mut rest = rest;
@@ -53,7 +53,7 @@ named!(
     parse_deref<CompleteStr, LispVal>,
     do_parse!(
         spaces
-            >> first: one_of!("@")
+            >> one_of!("@")
             >> rest: many1!(parse_expr)
             >> ({
                 let mut rest = rest;

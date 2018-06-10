@@ -6,8 +6,8 @@ where
     U: Display,
 {
     match result {
-        Ok(lisp_val) => print!("{}", lisp_val),
-        Err(e) => print!("ERR => {}", e),
+        Ok(lisp_val) => println!("{}", lisp_val),
+        Err(e) => println!("ERR => {}", e),
     }
 }
 

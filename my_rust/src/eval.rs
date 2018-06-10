@@ -1,6 +1,7 @@
 use lisp_val::LispVal;
 use lisp_val::LispError;
 use lisp_val::LispError::BadSpecialForm;
+use im::HashMap;
 
 #[cfg(test)]
 mod tests {
@@ -404,8 +405,11 @@ pub fn eval(lisp_val: Result<LispVal, LispError>) -> Result<LispVal, LispError> 
         val @ LispVal::String(_) => val,
         val @ LispVal::Number(_) => val,
         val @ LispVal::Bool(_) => val,
+        val @ LispVal::Keyword(_) => val,
         LispVal::List(l) => {
-            if l.len() == 4 && l[0] == LispVal::Atom(String::from("if")) {
+            if l.len() ==  0 {
+                LispVal::List(vec!())
+            } else if l.len() == 4 && l[0] == LispVal::Atom(String::from("if")) {
                 let mut l = l.into_iter();
                 // TODO(me) - There's sure to be a better way of doing this. At
                 // this point I know there are 4 entries, but I can't get them
@@ -437,6 +441,28 @@ pub fn eval(lisp_val: Result<LispVal, LispError>) -> Result<LispVal, LispError> 
                     LispVal::List(l)));
             }
         },
+        LispVal::Vector(v) => {
+            LispVal::Vector(v.into_iter()
+                            .map(Ok)
+                            .map(eval)
+                            .collect::<Result<Vec<_>, _>>()?)
+        }
+        LispVal::Map(m) => {
+            let initial: Result<HashMap<LispVal, LispVal>, LispError>
+                = Ok(hashmap!());
+            let h = m.into_iter()
+                .fold(initial, |acc, (k, v)| {
+                    if let Ok(acc) = acc {
+                        Ok(acc.insert(
+                            eval(Ok((*k).clone()))?,
+                            eval(Ok((*v).clone()))?)
+                        )
+                    } else {
+                        acc
+                    }
+                });
+            LispVal::Map(h?)
+        }
         val => return Err(BadSpecialForm(
             String::from("Unrecognized special form"),
             val))
