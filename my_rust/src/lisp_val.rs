@@ -128,6 +128,22 @@ pub enum SpecialForm {
     Quote,
     DefBang,
     LetStar,
+    Do,
+    FnStar,
+}
+
+impl SpecialForm {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.as_ref() {
+            "if" => Some(SpecialForm::If),
+            "let*" => Some(SpecialForm::LetStar),
+            "do" => Some(SpecialForm::Do),
+            "def!" => Some(SpecialForm::DefBang),
+            "quote" => Some(SpecialForm::Quote),
+            "fn*" => Some(SpecialForm::FnStar),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -207,6 +223,8 @@ impl Display for SpecialForm {
             &SpecialForm::Quote => write!(f, "quote"),
             &SpecialForm::DefBang => write!(f, "def!"),
             &SpecialForm::LetStar => write!(f, "let*"),
+            &SpecialForm::Do => write!(f, "do"),
+            &SpecialForm::FnStar => write!(f, "fn*"),
         }
     }
 }

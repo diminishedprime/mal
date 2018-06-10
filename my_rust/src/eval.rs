@@ -4,7 +4,7 @@ use lisp_val::ExecyBoi;
 use lisp_val::LispError;
 use lisp_val::LispResult;
 use lisp_val::LispVal;
-use lisp_val::SpecialForm::{DefBang, If, LetStar, Quote};
+use lisp_val::SpecialForm::{DefBang, Do, If, LetStar, Quote};
 use lisp_val::{AtomContents, ListContents, MapContents, VecContents};
 use std::ops::Deref;
 
@@ -348,6 +348,25 @@ fn eval_list(env: &Environment, lisp_val: ListContents) -> LispResult {
             Ok(ExecyBoi {
                 env: env.clone(),
                 val: evaled_body,
+            })
+        }
+        &[LispVal::SpecialForm(Do), ref forms..] => {
+            let mut val = None;
+            let env = forms.clone().iter().fold(Ok(env.clone()), |env, form| {
+                let env = env?;
+                let ExecyBoi {
+                    env: next_env,
+                    val: last_val,
+                } = eval(ExecyBoi {
+                    env: env,
+                    val: form.clone(),
+                })?;
+                val = Some(last_val);
+                Ok(next_env)
+            })?;
+            Ok(ExecyBoi {
+                env: env,
+                val: val.unwrap(),
             })
         }
         &[LispVal::SpecialForm(DefBang), LispVal::Atom(ref name), ref val] => {

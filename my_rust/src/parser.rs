@@ -85,14 +85,14 @@ named!(
                         // error code???
                         return Err(nom::Err::Error(nom::Context::Code(CompleteStr("temp"), nom::ErrorKind::Custom(3))));
                     }
-                match s.as_ref() {
-                    "#t" => LispVal::True,
-                    "#f" => LispVal::False,
-                    "quote" => LispVal::SpecialForm(SpecialForm::Quote),
-                    "if" => LispVal::SpecialForm(SpecialForm::If),
-                    "def!" => LispVal::SpecialForm(SpecialForm::DefBang),
-                    "let*" => LispVal::SpecialForm(SpecialForm::LetStar),
-                    _ => LispVal::Atom(s)
+                if let Some(s) = SpecialForm::from_str(&s) {
+                    LispVal::SpecialForm(s)
+                } else {
+                    match s.as_ref() {
+                        "#t" => LispVal::True,
+                        "#f" => LispVal::False,
+                        _ => LispVal::Atom(s)
+                    }
                 }
             })
     )
@@ -727,6 +727,24 @@ mod tests {
                     ]),
                 ]),
                 LispVal::atom_from("q"),
+            ])
+        )
+    }
+
+    #[test]
+    fn do_test() {
+        let input = "(do (def! a 5) a)";
+        let actual = parse(input).unwrap();
+        assert_eq!(
+            actual,
+            LispVal::from(vec![
+                LispVal::SpecialForm(SpecialForm::Do),
+                LispVal::from(vec![
+                    LispVal::SpecialForm(SpecialForm::DefBang),
+                    LispVal::atom_from("a"),
+                    LispVal::from(5),
+                ]),
+                LispVal::atom_from("a"),
             ])
         )
     }
