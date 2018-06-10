@@ -15,7 +15,8 @@ mod tests {
     use self::LispVal::List;
     use self::LispVal::Atom;
     use self::LispVal::Number;
-    use self::LispVal::Bool;
+    use self::LispVal::True;
+    use self::LispVal::False;
     use self::LispError::NumArgs;
 
     #[test]
@@ -36,8 +37,8 @@ mod tests {
 
     #[test]
     fn eval_bool() {
-        let input = Ok(LispVal::Bool(true));
-        let expected = Ok(LispVal::Bool(true));
+        let input = Ok(LispVal::True);
+        let expected = Ok(LispVal::True);
         let output = eval(input);
         assert_eq!(output, expected);
     }
@@ -167,7 +168,7 @@ mod tests {
     // #[test]
     // fn equality_one_arg() {
     //     let expr = List(vec!(easy_atom("="), Number(3)));
-    //     assert_eq!(eval(Ok(expr)), Ok(Bool(true)));
+    //     assert_eq!(eval(Ok(expr)), Ok(True));
     // }
 
     #[test]
@@ -178,11 +179,11 @@ mod tests {
                              List(vec!(easy_atom("+"),
                                        Number(3), Number(2))),
         ));
-        assert_eq!(eval(Ok(expr)), Ok(Bool(true)));
+        assert_eq!(eval(Ok(expr)), Ok(True));
     }
 
     fn easy_bool(b: bool) -> LispVal {
-        LispVal::Bool(b)
+        LispVal::bool_for(b)
     }
 
     fn easy_str(s: &str) -> LispVal {
@@ -216,7 +217,7 @@ mod tests {
     //                                    Number(3), Number(2))),
     //                          Number(5)
     //     ));
-    //     assert_eq!(eval(Ok(expr)), Ok(Bool(true)));
+    //     assert_eq!(eval(Ok(expr)), Ok(True));
     // }
 
     // #[test]
@@ -226,9 +227,9 @@ mod tests {
     //                                    Number(2), Number(3))),
     //                          List(vec!(easy_atom("+"),
     //                                    Number(3), Number(2))),
-    //                          Bool(false)
+    //                          False
     //     ));
-    //     assert_eq!(eval(Ok(expr)), Ok(Bool(false)));
+    //     assert_eq!(eval(Ok(expr)), Ok(False));
     // }
 
     #[test]
@@ -236,11 +237,11 @@ mod tests {
         let expr = List(vec!(
             easy_atom("car"),
             List(vec!(
-                Bool(true),
-                Bool(false)
+                True,
+                False
             ))
         ));
-        assert_eq!(eval(Ok(expr)), Ok(Bool(true)));
+        assert_eq!(eval(Ok(expr)), Ok(True));
     }
 
 }
@@ -262,7 +263,8 @@ fn unpack_num(val: LispVal) -> Result<i32, LispError> {
 
 fn unpack_bool(val: LispVal) -> Result<bool, LispError> {
     match val {
-        LispVal::Bool(n) => Ok(n),
+        LispVal::True => Ok(true),
+        LispVal::False => Ok(false),
         _ => Err(LispError::TypeMismatch(String::from("bool"), val))
     }
 }
@@ -385,20 +387,20 @@ fn eval_primatives(func: &str, args: Vec<LispVal>) -> Result<Option<LispVal>, Li
         // "quotient" => Some(Box::new(|a, b| { a / b})),
         // "remainder" => Some(Box::new(|a, b| { a / b})),
         "=" => Ok(Some(
-                generic_binop(unpack_num, |a, b| LispVal::Bool(a == b), args)?
+            generic_binop(unpack_num, |a, b| LispVal::bool_for(a == b), args)?
         )),
-        "<" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::Bool(a < b), args)?)),
-        ">" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::Bool(a > b), args)?)),
-        "/=" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::Bool(a != b), args)?)),
-        ">=" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::Bool(a >= b), args)?)),
-        "<=" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::Bool(a <= b), args)?)),
-        "&&" => Ok(Some(generic_binop(unpack_bool, |a, b| LispVal::Bool(a && b), args)?)),
-        "||" => Ok(Some(generic_binop(unpack_bool, |a, b| LispVal::Bool(a || b), args)?)),
-        "string=?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::Bool(a == b), args)?)),
-        "string<?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::Bool(a <= b), args)?)),
-        "string>?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::Bool(a >= b), args)?)),
-        "string<=?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::Bool(a <= b), args)?)),
-        "string>=?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::Bool(a >= b), args)?)),
+        "<" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::bool_for(a < b), args)?)),
+        ">" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::bool_for(a > b), args)?)),
+        "/=" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::bool_for(a != b), args)?)),
+        ">=" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::bool_for(a >= b), args)?)),
+        "<=" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::bool_for(a <= b), args)?)),
+        "&&" => Ok(Some(generic_binop(unpack_bool, |a, b| LispVal::bool_for(a && b), args)?)),
+        "||" => Ok(Some(generic_binop(unpack_bool, |a, b| LispVal::bool_for(a || b), args)?)),
+        "string=?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::bool_for(a == b), args)?)),
+        "string<?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::bool_for(a <= b), args)?)),
+        "string>?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::bool_for(a >= b), args)?)),
+        "string<=?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::bool_for(a <= b), args)?)),
+        "string>=?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::bool_for(a >= b), args)?)),
         "car" => Ok(Some(eval_car(args)?)),
         _ => Ok(None)
     }
@@ -417,7 +419,7 @@ pub fn eval_list(lisp_val: LispVal) -> Result<LispVal, LispError> {
             let pred = Ok(l.clone().nth(1).unwrap());
             let conseq = Ok(l.clone().nth(2).unwrap());
             let alt = Ok(l.clone().nth(3).unwrap());
-            if let LispVal::Bool(false) = eval(pred)? {
+            if let LispVal::False = eval(pred)? {
                 eval(alt)
             } else {
                 eval(conseq)
@@ -484,7 +486,8 @@ pub fn eval(lisp_val: Result<LispVal, LispError>) -> Result<LispVal, LispError> 
         val @ LispVal::DottedList(_) => val,
         val @ LispVal::String(_) => val,
         val @ LispVal::Number(_) => val,
-        val @ LispVal::Bool(_) => val,
+        val @ LispVal::True => val,
+        val @ LispVal::False => val,
         val @ LispVal::Keyword(_) => val,
         val @ LispVal::List(_) => eval_list(val)?,
         val @ LispVal::Vector(_) => eval_vector(val)?,

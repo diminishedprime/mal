@@ -52,10 +52,22 @@ pub enum LispVal {
     DottedList(DottedListContents),
     Number(i32),
     String(String),
-    Bool(bool),
+    True,
+    False,
     Keyword(String),
     Vector(Vec<LispVal>),
     Map(HashMap<LispVal, LispVal>),
+}
+
+impl LispVal {
+    // TODO(me) - is there some sort of "from" trait?
+    pub fn bool_for(b: bool) -> LispVal {
+        if b {
+            LispVal::True
+        } else {
+            LispVal::False
+        }
+    }
 }
 
 impl Display for LispVal {
@@ -111,10 +123,8 @@ impl Display for LispVal {
                 write!(f, ")")
             }
             &LispVal::Number(n) => write!(f, "{}", n),
-            &LispVal::Bool(b) => match b {
-                true => write!(f, "#t"),
-                false => write!(f, "#f"),
-            },
+            &LispVal::True => write!(f, "#t"),
+            &LispVal::False => write!(f, "#f"),
             &LispVal::String(ref s) => write!(f, "\"{}\"", s),
         }
     }
@@ -126,7 +136,8 @@ mod tests {
     use lisp_val::LispVal::Atom;
     use lisp_val::LispVal::List;
     use lisp_val::LispVal::DottedList;
-    use lisp_val::LispVal::Bool;
+    use lisp_val::LispVal::True;
+    use lisp_val::LispVal::False;
     use lisp_val::LispVal::Number;
     // use lisp_val::LispError::TypeMismatch;
 
@@ -138,7 +149,7 @@ mod tests {
 
     #[test]
     fn display_list() {
-        let list = List(vec!(Bool(true), Bool(false)));
+        let list = List(vec!(True, False));
         assert_eq!(String::from("(#t #f)"), format!("{}", list));
     }
 
@@ -146,8 +157,8 @@ mod tests {
     fn display_dottedlist() {
         let dottedlist = DottedList(
             DottedListContents {
-                head: vec!(Bool(true), Bool(false)),
-                tail: Box::new(Bool(true))
+                head: vec!(True, False),
+                tail: Box::new(True)
             });
         assert_eq!(String::from("(#t #f . #t)"), format!("{}", dottedlist));
     }
@@ -160,13 +171,13 @@ mod tests {
 
     #[test]
     fn display_bool() {
-        let bool = Bool(true);
+        let bool = True;
         assert_eq!(String::from("#t"), format!("{}", bool));
     }
 
     #[test]
     fn display_bool_false() {
-        let bool = Bool(false);
+        let bool = False;
         assert_eq!(String::from("#f"), format!("{}", bool));
     }
 

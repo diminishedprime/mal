@@ -85,8 +85,8 @@ named!(
                         return Err(nom::Err::Error(nom::Context::Code(CompleteStr("temp"), nom::ErrorKind::Custom(3))));
                     }
                 match s.as_ref() {
-                    "#t" => LispVal::Bool(true),
-                    "#f" => LispVal::Bool(false),
+                    "#t" => LispVal::True,
+                    "#f" => LispVal::False,
                     _ => LispVal::Atom(s)
                 }
             })
@@ -337,14 +337,14 @@ mod tests {
     fn atom_parsing_true() {
         let input = CompleteStr("#t");
         let (_, actual) = parse_atom(input).unwrap();
-        assert_eq!(actual, LispVal::Bool(true))
+        assert_eq!(actual, LispVal::True)
     }
 
     #[test]
     fn atom_parsing_false() {
         let input = CompleteStr("#f");
         let (_, actual) = parse_atom(input).unwrap();
-        assert_eq!(actual, LispVal::Bool(false))
+        assert_eq!(actual, LispVal::False)
     }
 
 
@@ -582,7 +582,7 @@ mod tests {
     fn parse_atom_test() {
         let input = String::from("#t");
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::Bool(true))
+        assert_eq!(actual, LispVal::True)
     }
 
     #[test]
