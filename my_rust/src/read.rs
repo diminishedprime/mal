@@ -18,5 +18,4 @@ pub fn read(prompt: &str) -> Result<String, String> {
 }
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

@@ -1,9 +1,10 @@
-use nom::types::CompleteStr;
-use nom;
-use lisp_val::LispVal;
-use lisp_val::LispError;
-use lisp_val::DottedListContents;
 use im::HashMap;
+use lisp_val::DottedListContents;
+use lisp_val::LispError;
+use lisp_val::LispVal;
+use lisp_val::SpecialForm;
+use nom;
+use nom::types::CompleteStr;
 
 named!(spaces<CompleteStr, ()>, do_parse!(
     many0!(one_of!(" ,")) >> ())
@@ -87,6 +88,8 @@ named!(
                 match s.as_ref() {
                     "#t" => LispVal::True,
                     "#f" => LispVal::False,
+                    "quote" => LispVal::SpecialForm(SpecialForm::Quote),
+                    "if" => LispVal::SpecialForm(SpecialForm::If),
                     _ => LispVal::Atom(s)
                 }
             })
@@ -252,7 +255,8 @@ named!(
         spaces
             >> tag!("'")
             >> x: parse_expr
-            >> (LispVal::List(vec!(LispVal::Atom(String::from("quote")), x)))
+            >> (LispVal::List(vec!(
+                LispVal::SpecialForm(SpecialForm::Quote), x)))
     )
 );
 
@@ -290,8 +294,7 @@ named!(
     )
 );
 
-
-pub fn parse(input: String) -> Result<LispVal, LispError> {
+pub fn parse(input: &str) -> Result<LispVal, LispError> {
     let parsed = parse_expr(CompleteStr(&input));
     match parsed {
         Ok((_, parse_result)) => Ok(parse_result),
@@ -299,12 +302,9 @@ pub fn parse(input: String) -> Result<LispVal, LispError> {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn symbol_test() {
@@ -347,10 +347,9 @@ mod tests {
         assert_eq!(actual, LispVal::False)
     }
 
-
     #[test]
     fn string_parsing() {
-        let input = String::from("\"my string\"");
+        let input = "\"my string\"";
         let input = CompleteStr(&input);
         let (_, actual) = parse_string(input).unwrap();
         assert_eq!(actual, LispVal::String(String::from("my string")))
@@ -358,27 +357,21 @@ mod tests {
 
     #[test]
     fn string_parsing_with_escaped_quotes() {
-        let input = String::from(
-            r#""my \"string\" is great""#
-        );
+        let input = String::from(r#""my \"string\" is great""#);
         let input = CompleteStr(&input);
         let (_, actual) = parse_string(input).unwrap();
-        assert_eq!(actual,
-                   LispVal::String(
-                       String::from(r#"my \"string\" is great"#)
-                   ))
+        assert_eq!(
+            actual,
+            LispVal::String(String::from(r#"my \"string\" is great"#))
+        )
     }
 
     #[test]
     fn string_parsing_with_all_escaped_chars() {
-        let input = String::from(
-            r#"  " \n \t \r "     "#
-        );
+        let input = String::from(r#"  " \n \t \r "     "#);
         let input = CompleteStr(&input);
         let (_, actual) = parse_string(input).unwrap();
-        assert_eq!(actual, LispVal::String(String::from(
-            r#" \n \t \r "#
-        )))
+        assert_eq!(actual, LispVal::String(String::from(r#" \n \t \r "#)))
     }
 
     #[test]
@@ -400,7 +393,7 @@ mod tests {
         use self::LispVal::Number;
         let input = CompleteStr("3 4   5 ");
         let (_, actual) = parse_list(input).unwrap();
-        assert_eq!(actual, LispVal::List(vec!(Number(3), Number(4), Number(5))))
+        assert_eq!(actual, LispVal::List(vec![Number(3), Number(4), Number(5)]))
     }
 
     #[test]
@@ -410,22 +403,26 @@ mod tests {
 
         let input = CompleteStr("3 4 . 5");
         let (_, actual) = parse_dotted_list(input).unwrap();
-        assert_eq!(actual, LispVal::DottedList(
-            DottedListContents {
-                head: vec!(Number(3), Number(4)),
-                tail: Box::new(Number(5))
-            }
-        ))
+        assert_eq!(
+            actual,
+            LispVal::DottedList(DottedListContents {
+                head: vec![Number(3), Number(4)],
+                tail: Box::new(Number(5)),
+            })
+        )
     }
 
     #[test]
     fn quoted_parsing() {
         let input = CompleteStr("'atom");
         let (_, actual) = parse_quoted(input).unwrap();
-        assert_eq!(actual, LispVal::List(vec!(
-            LispVal::Atom(String::from("quote")),
-            LispVal::Atom(String::from("atom"))
-        )))
+        assert_eq!(
+            actual,
+            LispVal::List(vec![
+                LispVal::SpecialForm(SpecialForm::Quote),
+                LispVal::Atom(String::from("atom")),
+            ])
+        )
     }
 
     #[test]
@@ -433,13 +430,7 @@ mod tests {
         use self::LispVal::Number;
         let input = CompleteStr("(1 2 3)");
         let (_, actual) = parse_lists(input).unwrap();
-        assert_eq!(actual, LispVal::List(
-            vec!(
-                Number(1),
-                Number(2),
-                Number(3)
-            )
-        ))
+        assert_eq!(actual, LispVal::List(vec![Number(1), Number(2), Number(3)]))
     }
     #[test]
     fn parse_lists_test_dotted() {
@@ -447,16 +438,13 @@ mod tests {
         use lisp_val::DottedListContents;
         let input = CompleteStr("(1 2 3 . 4)");
         let (_, actual) = parse_lists(input).unwrap();
-        assert_eq!(actual, LispVal::DottedList(
-            DottedListContents {
-                head: vec!(
-                    Number(1),
-                    Number(2),
-                    Number(3)
-                ),
-                tail: Box::new(Number(4))
-            }
-        ))
+        assert_eq!(
+            actual,
+            LispVal::DottedList(DottedListContents {
+                head: vec![Number(1), Number(2), Number(3)],
+                tail: Box::new(Number(4)),
+            })
+        )
     }
 
     #[test]
@@ -469,64 +457,61 @@ mod tests {
     #[test]
     fn parse_list_test() {
         use self::LispVal::Number;
-        let input = String::from("(1 2 3)");
-        let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::List(
-            vec!(
-                Number(1),
-                Number(2),
-                Number(3)
-            )))
+        let actual = parse("(1 2 3)").unwrap();
+        assert_eq!(actual, LispVal::List(vec![Number(1), Number(2), Number(3)]))
     }
 
     #[test]
     fn parse_list_strings_simplier() {
-        let input = String::from(r#"("hi there")"#);
+        let input = r#"("hi there")"#;
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::List(
-            vec!(
-                LispVal::String(String::from("hi there"))
-            )
-        ))
+        assert_eq!(
+            actual,
+            LispVal::List(vec![LispVal::String(String::from("hi there"))])
+        )
     }
 
     #[test]
     fn parse_list_strings_less_simplier() {
-        let input = String::from(r#"("hi there" "johnny")"#);
+        let input = r#"("hi there" "johnny")"#;
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::List(
-            vec!(
+        assert_eq!(
+            actual,
+            LispVal::List(vec![
                 LispVal::String(String::from("hi there")),
-                LispVal::String(String::from("johnny"))
-            )
-        ))
+                LispVal::String(String::from("johnny")),
+            ])
+        )
     }
 
     #[test]
     fn parse_list_strings() {
-        let input = String::from(r#"("hi there" "I am strings" "hooray")"#);
+        let input = r#"("hi there" "I am strings" "hooray")"#;
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::List(
-            vec!(
+        assert_eq!(
+            actual,
+            LispVal::List(vec![
                 LispVal::String(String::from("hi there")),
                 LispVal::String(String::from("I am strings")),
                 LispVal::String(String::from("hooray")),
-            )
-        ))
+            ])
+        )
     }
 
     #[test]
     fn parse_list_minus() {
         use self::LispVal::Number;
-        let input = String::from("(- 1 -2 3)");
+        let input = "(- 1 -2 3)";
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::List(
-            vec!(
+        assert_eq!(
+            actual,
+            LispVal::List(vec![
                 LispVal::Atom(String::from("-")),
                 Number(1),
                 Number(-2),
-                Number(3)
-            )))
+                Number(3),
+            ])
+        )
     }
 
     #[test]
@@ -534,178 +519,195 @@ mod tests {
         use self::LispVal::Number;
         use lisp_val::DottedListContents;
 
-        let input = String::from("(1 2 3 . 4)");
+        let input = "(1 2 3 . 4)";
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::DottedList(
-            DottedListContents {
-                head: vec!(
-                    Number(1),
-                    Number(2),
-                    Number(3)
-                ),
-                tail: Box::new(Number(4))
-            }
-        ))
+        assert_eq!(
+            actual,
+            LispVal::DottedList(DottedListContents {
+                head: vec![Number(1), Number(2), Number(3)],
+                tail: Box::new(Number(4)),
+            })
+        )
     }
 
     #[test]
     fn parse_quoted_test() {
-        let input = String::from("'hello");
+        let input = "'hello";
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::List(
-            vec!(LispVal::Atom(String::from("quote")),
-                 LispVal::Atom(String::from("hello")))))
+        assert_eq!(
+            actual,
+            LispVal::List(vec![
+                LispVal::SpecialForm(SpecialForm::Quote),
+                LispVal::Atom(String::from("hello")),
+            ])
+        )
     }
 
     #[test]
     fn parse_quasiquoted_test() {
-        let input = String::from("`hello");
+        let input = "`hello";
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::List(
-            vec!(LispVal::Atom(String::from("quasiquote")),
-                 LispVal::Atom(String::from("hello")))))
+        assert_eq!(
+            actual,
+            LispVal::List(vec![
+                LispVal::Atom(String::from("quasiquote")),
+                LispVal::Atom(String::from("hello")),
+            ])
+        )
     }
 
     #[test]
     fn parse_quasiquoted_unquote_test() {
-        let input = String::from("`~1");
+        let input = "`~1";
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::List(
-            vec!(LispVal::Atom(String::from("quasiquote")),
-                 LispVal::List(
-                     vec!(LispVal::Atom(String::from("unquote")),
-                          LispVal::Number(1))
-                 ))));
+        assert_eq!(
+            actual,
+            LispVal::List(vec![
+                LispVal::Atom(String::from("quasiquote")),
+                LispVal::List(vec![
+                    LispVal::Atom(String::from("unquote")),
+                    LispVal::Number(1),
+                ]),
+            ])
+        );
     }
 
     #[test]
     fn parse_atom_test() {
-        let input = String::from("#t");
+        let input = "#t";
         let actual = parse(input).unwrap();
         assert_eq!(actual, LispVal::True)
     }
 
     #[test]
     fn parse_string_test() {
-        let input = String::from("\"hello there\"");
+        let input = "\"hello there\"";
         let actual = parse(input).unwrap();
         assert_eq!(actual, LispVal::String(String::from("hello there")))
     }
 
     #[test]
     fn parse_empty_string_test() {
-        let input = String::from(r#""""#);
+        let input = r#""""#;
         let actual = parse(input).unwrap();
         assert_eq!(actual, LispVal::String(String::from(r#""#)))
     }
 
     #[test]
     fn parse_parens_string_test() {
-
-        let input = String::from(r#""abc (with parens)""#);
+        let input = r#""abc (with parens)""#;
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::String(String::from(r#"abc (with parens)"#)))
+        assert_eq!(
+            actual,
+            LispVal::String(String::from(r#"abc (with parens)"#))
+        )
     }
-
 
     #[test]
     fn parse_number_test() {
-        let input = String::from("123");
+        let input = "123";
         let actual = parse(input).unwrap();
         assert_eq!(actual, LispVal::Number(123))
     }
 
     #[test]
     fn parse_with_weird_spaces() {
-        let input = String::from("       7         ");
+        let input = "       7         ";
         let actual = parse(input).unwrap();
         assert_eq!(actual, LispVal::Number(7))
     }
 
     #[test]
     fn parse_keyword_test() {
-        let input = String::from(" :123");
+        let input = " :123";
         let actual = parse(input).unwrap();
         assert_eq!(actual, LispVal::Keyword(String::from(":123")))
     }
 
     #[test]
     fn parse_vector_test() {
-        let input = String::from(" [ 1 2 3, 4] ");
+        let input = " [ 1 2 3, 4] ";
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::Vector(
-            vec!(
+        assert_eq!(
+            actual,
+            LispVal::Vector(vec![
                 LispVal::Number(1),
                 LispVal::Number(2),
                 LispVal::Number(3),
                 LispVal::Number(4),
-            )))
+            ])
+        )
     }
 
     #[test]
     fn parse_hash_map_test() {
-        let input = String::from(" { :key \"value\"} ");
+        let input = " { :key \"value\"} ";
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::Map(
-            hashmap!{
+        assert_eq!(
+            actual,
+            LispVal::Map(hashmap!{
                 LispVal::Keyword(String::from(":key")) => LispVal::String(String::from("value"))
-            }
-        ))
+            })
+        )
     }
 
     #[test]
     fn parse_hash_map_test_2() {
-        let input = String::from(r#"{1 "abc" }"#);
+        let input = r#"{1 "abc" }"#;
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::Map(
-            hashmap!{
+        assert_eq!(
+            actual,
+            LispVal::Map(hashmap!{
                 LispVal::Number(1) => LispVal::String(String::from("abc"))
-            }
-        ))
+            })
+        )
     }
 
     #[test]
     fn parse_hash_map_test_3() {
-        let input = String::from(r#"{"abc" 1}"#);
+        let input = r#"{"abc" 1}"#;
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::Map(
-            hashmap!{
+        assert_eq!(
+            actual,
+            LispVal::Map(hashmap!{
                 LispVal::String(String::from("abc")) => LispVal::Number(1)
-            }
-        ))
+            })
+        )
     }
 
     // fn parse_whole_line_comment() {
-    //     let input = String::from("      ;; this is a comment '1");
+    //     let input = "      ;; this is a comment '1";
     //     let actual = parse(input).unwrap();
     //     assert_eq!(actual, )
     // }
 
     #[test]
     fn deref() {
-        let input = String::from(r#"@a"#);
+        let input = r#"@a"#;
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::List(
-            vec!(
+        assert_eq!(
+            actual,
+            LispVal::List(vec![
                 LispVal::Atom(String::from("deref")),
-                LispVal::Atom(String::from("a")))
-        ))
+                LispVal::Atom(String::from("a")),
+            ])
+        )
     }
 
     #[test]
     fn splicing_unqoute() {
-        let input = String::from("~@(1 2 3)");
+        let input = "~@(1 2 3)";
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::List(
-            vec!(LispVal::Atom(String::from("splice-unquote")),
-                 LispVal::List(
-                     vec!(
-                         LispVal::Number(1),
-                         LispVal::Number(2),
-                         LispVal::Number(3)
-                     )
-                 )
-            )
-        ))
+        assert_eq!(
+            actual,
+            LispVal::List(vec![
+                LispVal::Atom(String::from("splice-unquote")),
+                LispVal::List(vec![
+                    LispVal::Number(1),
+                    LispVal::Number(2),
+                    LispVal::Number(3),
+                ]),
+            ])
+        )
     }
 }

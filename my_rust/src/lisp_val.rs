@@ -1,7 +1,7 @@
-use std::fmt::Display;
-use std::fmt;
-use std::slice::SliceConcatExt;
 use im::HashMap;
+use std::fmt;
+use std::fmt::Display;
+use std::slice::SliceConcatExt;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum LispError {
@@ -17,22 +17,19 @@ pub enum LispError {
 impl Display for LispError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &LispError::TypeMismatch(ref expected, ref found) =>
-                write!(f, "Invalid type: expected {}, found {}",
-                       expected, found),
-            &LispError::BadSpecialForm(ref message, ref form) =>
-                write!(f, "{}: {}", message, form),
-            &LispError::NotFunction(ref message, ref func) =>
-                write!(f, "{}: {}", message, func),
-            &LispError::NumArgs(ref expected, ref found) =>
-                write!(f, "Expected: {} args; found values {}",
-                       expected, found),
+            &LispError::TypeMismatch(ref expected, ref found) => {
+                write!(f, "Invalid type: expected {}, found {}", expected, found)
+            }
+            &LispError::BadSpecialForm(ref message, ref form) => write!(f, "{}: {}", message, form),
+            &LispError::NotFunction(ref message, ref func) => write!(f, "{}: {}", message, func),
+            &LispError::NumArgs(ref expected, ref found) => {
+                write!(f, "Expected: {} args; found values {}", expected, found)
+            }
             // &LispError::UnboundVar(ref a, ref b) =>
             //     write!(f, "a: {} b: {}", a, b),
             // &LispError::Default(ref a) =>
             //     write!(f, "a: {}", a),
-            &LispError::Parse(ref a) =>
-                write!(f, "a: {}", a),
+            &LispError::Parse(ref a) => write!(f, "a: {}", a),
         }
     }
 }
@@ -54,7 +51,7 @@ impl Clone for Environment {
         Environment {
             previous: match *self.previous {
                 Some(ref p) => Box::new(Some(p.clone())),
-                None => Box::new(None)
+                None => Box::new(None),
             },
             contents: self.contents.clone(),
         }
@@ -78,6 +75,12 @@ impl Environment {
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub enum SpecialForm {
+    If,
+    Quote,
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum LispVal {
     True,
     False,
@@ -85,6 +88,7 @@ pub enum LispVal {
     Number(i32),
 
     String(String),
+    SpecialForm(SpecialForm),
     Atom(String),
     Keyword(String),
 
@@ -146,9 +150,19 @@ impl From<DottedListContents> for LispVal {
     }
 }
 
+impl Display for SpecialForm {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &SpecialForm::If => write!(f, "if"),
+            &SpecialForm::Quote => write!(f, "quote"),
+        }
+    }
+}
+
 impl Display for LispVal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            &LispVal::SpecialForm(ref s) => write!(f, "{}", s),
             &LispVal::Map(ref m) => {
                 write!(f, "{{")?;
                 // TODO(me) - This seems overly complicated. Is there a way I
@@ -160,7 +174,7 @@ impl Display for LispVal {
                     .join(" ");
                 write!(f, "{}", parts)?;
                 write!(f, "}}")
-            },
+            }
             &LispVal::Vector(ref v) => {
                 write!(f, "[")?;
                 // TODO(me) - This seems overly complicated. Is there a way I
@@ -187,7 +201,7 @@ impl Display for LispVal {
                 write!(f, "{}", parts)?;
                 write!(f, ")")
             }
-            &LispVal::DottedList(DottedListContents{ref head, ref tail}) => {
+            &LispVal::DottedList(DottedListContents { ref head, ref tail }) => {
                 write!(f, "(")?;
                 let parts = head
                     .iter()
@@ -210,8 +224,8 @@ impl Display for LispVal {
 mod tests {
     use super::*;
     use lisp_val::LispVal;
-    use lisp_val::LispVal::True;
     use lisp_val::LispVal::False;
+    use lisp_val::LispVal::True;
 
     #[test]
     fn display_atom() {
@@ -221,17 +235,16 @@ mod tests {
 
     #[test]
     fn display_list() {
-        let list = LispVal::from(vec!(True, False));
+        let list = LispVal::from(vec![True, False]);
         assert_eq!(String::from("(#t #f)"), format!("{}", list));
     }
 
     #[test]
     fn display_dottedlist() {
-        let dottedlist = LispVal::from(
-            DottedListContents {
-                head: vec!(True, False),
-                tail: Box::new(True)
-            });
+        let dottedlist = LispVal::from(DottedListContents {
+            head: vec![True, False],
+            tail: Box::new(True),
+        });
         assert_eq!(String::from("(#t #f . #t)"), format!("{}", dottedlist));
     }
 
@@ -263,12 +276,12 @@ mod tests {
     fn display_list_nested() {
         let one = LispVal::from(1);
         let two = LispVal::string_from("two");
-        let three_and_four = LispVal::from(
-            DottedListContents {
-                head: vec!(LispVal::from(3)),
-                tail: Box::new(LispVal::from(4))});
+        let three_and_four = LispVal::from(DottedListContents {
+            head: vec![LispVal::from(3)],
+            tail: Box::new(LispVal::from(4)),
+        });
 
-        let list = LispVal::from(vec!(one, two, three_and_four));
+        let list = LispVal::from(vec![one, two, three_and_four]);
         assert_eq!(String::from("(1 \"two\" (3 . 4))"), format!("{}", list));
     }
 
