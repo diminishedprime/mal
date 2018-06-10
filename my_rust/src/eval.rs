@@ -229,36 +229,22 @@ fn apply_one<A>(
     Ok(pure_(left))
 }
 
+// TODO(me) - Add tests for these branches
+// TODO(me) - Make a special form for car/cdr
+// TODO(me) - change car/cdr to first/rest
 fn eval_car(env: Environment, args: Vec<LispVal>) -> Result<LispVal, LispError> {
-    if args.len() != 1 {
-        return Err(LispError::NumArgs(1, LispVal::List(args)));
+    match &args[..] {
+        &[LispVal::List(ref lc)] => eval(env.clone(), Ok(lc[0].clone())),
+        &[LispVal::Vector(ref lc)] => eval(env.clone(), Ok(lc[0].clone())),
+        &[LispVal::DottedList(DottedListContents { ref head, .. })] => {
+            eval(env.clone(), Ok(head[0].clone()))
+        }
+        &[ref val] => Err(LispError::TypeMismatch(String::from("List"), val.clone())),
+        _ => Err(LispError::NumArgs(
+            args.len() as i32,
+            LispVal::from(args.clone()),
+        )),
     }
-    Ok(match args.into_iter().nth(0).unwrap() {
-        LispVal::List(v) => {
-            if v.len() < 1 {
-                return Err(LispError::TypeMismatch(
-                    String::from("pair"),
-                    LispVal::String(String::from("need to figure this out")),
-                ));
-            }
-            eval(env, Ok(v.into_iter().nth(0).unwrap()))?
-        }
-        LispVal::DottedList(DottedListContents { head, .. }) => {
-            if head.len() < 1 {
-                return Err(LispError::TypeMismatch(
-                    String::from("pair"),
-                    LispVal::String(String::from("need to figure this out")),
-                ));
-            }
-            eval(env, Ok(head.into_iter().nth(0).unwrap()))?
-        }
-        _ => {
-            return Err(LispError::TypeMismatch(
-                String::from("pair"),
-                LispVal::String(String::from("need to figure this out")),
-            ));
-        }
-    })
 }
 
 fn eval_primatives(
