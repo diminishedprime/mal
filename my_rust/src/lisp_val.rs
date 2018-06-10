@@ -25,7 +25,7 @@ pub enum LispError {
     BadSpecialForm(String, LispVal),
     NotFunction(String),
     UnboundVar(String),
-    // Default(String),
+    Default(String),
     Parse(String),
 }
 
@@ -43,9 +43,8 @@ impl Display for LispError {
             &LispError::UnboundVar(ref name) => {
                 write!(f, "{} was not bound in the current environment.", name)
             }
-            // &LispError::Default(ref a) =>
-            //     write!(f, "a: {}", a),
-            &LispError::Parse(ref a) => write!(f, "a: {}", a),
+            &LispError::Default(ref a) => write!(f, "Default Error:\n{}", a),
+            &LispError::Parse(ref a) => write!(f, "Parse Error:\n{}", a),
         }
     }
 }

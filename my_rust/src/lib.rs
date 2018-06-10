@@ -13,23 +13,27 @@ pub mod parser;
 pub mod print;
 pub mod read;
 
+use lisp_val::Environment;
+use lisp_val::ExecyBoi;
+use lisp_val::LispError;
+
+fn eval_loop(incoming_env: &Environment) -> Result<ExecyBoi, LispError> {
+    let read_val = read::read("user> ")?;
+    let parsed = parser::parse(&read_val)?;
+    let evaled = eval::eval(ExecyBoi {
+        val: parsed,
+        env: incoming_env.clone(),
+    });
+    print::print(&evaled);
+    evaled
+}
+
 pub fn main() {
     let mut env = lisp_val::Environment::new();
     loop {
-        read::read("user> ")
-            .map(|input| parser::parse(&input))
-            .map(|parsed| {
-                eval::eval(lisp_val::ExecyBoi {
-                    val: parsed.unwrap(),
-                    env: env.clone(),
-                })
-            })
-            .map(|last| {
-                let last = last.unwrap();
-                env = last.env;
-                last.val
-            })
-            .map(print::print)
-            .expect("This shouldn't happen");
+        match eval_loop(&env) {
+            Ok(execy_boi) => env = execy_boi.env,
+            Err(e) => println!("Ignoring these errors for now?\n{:?}", e),
+        };
     }
 }

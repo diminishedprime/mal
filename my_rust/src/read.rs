@@ -1,7 +1,8 @@
+use lisp_val::LispError;
 use std::io;
 use std::io::Write;
 
-pub fn read(prompt: &str) -> Result<String, String> {
+pub fn read(prompt: &str) -> Result<String, LispError> {
     print!("{}", prompt);
     io::stdout().flush().unwrap();
     let mut input = String::new();
@@ -13,7 +14,7 @@ pub fn read(prompt: &str) -> Result<String, String> {
         Ok(input)
     } else {
         // What exactly can go wrong here?
-        Err(String::from("Something went wrong"))
+        Err(LispError::Default(String::from("Something went wrong")))
     }
 }
 

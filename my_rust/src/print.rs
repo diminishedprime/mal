@@ -1,10 +1,14 @@
 use std::fmt::Display;
 
-pub fn print<T>(t: T) -> ()
+pub fn print<T, U>(result: &Result<T, U>) -> ()
 where
     T: Display,
+    U: Display,
 {
-    println!("{}", t)
+    match result {
+        Ok(a) => println!("{}", a),
+        Err(e) => eprintln!("{}", e),
+    }
 }
 
 #[cfg(test)]
