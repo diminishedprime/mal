@@ -17,7 +17,7 @@ pub fn main() {
     loop {
         read::read("user> ")
             .map(parser::parse)
-            .map(eval::eval)
+            .map(eval::eval_start)
             .map(print::print)
             .expect("This should not happen");
     }

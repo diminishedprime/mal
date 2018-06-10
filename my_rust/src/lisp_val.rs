@@ -49,6 +49,34 @@ pub struct DottedListContents {
     pub tail: Box<LispVal>,
 }
 
+impl Clone for Environment {
+    fn clone(&self) -> Environment {
+        Environment {
+            previous: match *self.previous {
+                Some(ref p) => Box::new(Some(p.clone())),
+                None => Box::new(None)
+            },
+            contents: self.contents.clone(),
+        }
+    }
+}
+
+type Name = String;
+
+pub struct Environment {
+    previous: Box<Option<Environment>>,
+    contents: HashMap<Name, LispVal>,
+}
+
+impl Environment {
+    pub fn new() -> Self {
+        Environment {
+            previous: Box::new(None),
+            contents: hashmap!(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum LispVal {
     True,
