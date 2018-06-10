@@ -1,5 +1,3 @@
-use lisp_val::LispVal;
-use lisp_val::LispError;
 use std::fmt::Display;
 
 pub fn print<T, U>(result: Result<T, U>) -> ()

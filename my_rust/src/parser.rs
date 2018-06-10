@@ -2,12 +2,13 @@ use nom::types::CompleteStr;
 use nom;
 use lisp_val::LispVal;
 use lisp_val::LispError;
+use im::HashMap;
 
-fn is_double_quote(s: char) -> bool {
-    s == '"'
-}
+named!(spaces<CompleteStr, ()>, do_parse!(
+    many0!(one_of!(" ,")) >> ())
+);
 
-named!(symbol<CompleteStr, char>, one_of!("!#$%&|*+-/:<=>?@^_~"));
+named!(symbol<CompleteStr, char>, one_of!("!#$%&|*+-/:<=>?@^_"));
 
 named!(
     letter<CompleteStr, char>,
@@ -16,45 +17,116 @@ named!(
 
 named!(digit<CompleteStr, char>, one_of!("0123456789"));
 
-
 named!(
-    parse_atom<CompleteStr, LispVal>,
+    parse_with_meta<CompleteStr, LispVal>,
     do_parse!(
-        first: alt!(letter | symbol) >> rest: many0!(alt!(letter | symbol | digit)) >> ({
-            let mut s = String::new();
-            let rest = rest.into_iter().collect::<String>();
-            s.push(first);
-            s.push_str(&rest);
-            // TODO(me) - this is really hacky. How can we be more nuanced about
-            // negative numbers vs atoms.
-            if first == '-'
-                && rest.len() > 0
-                && rest.chars().all(|c| c.is_digit(10)) {
-                    // TODO(me) - Is this really the best way to return my own
-                    // error code???
-                    return Err(nom::Err::Error(nom::Context::Code(CompleteStr("temp"), nom::ErrorKind::Custom(3))));
-                }
-            match s.as_ref() {
-                "#t" => LispVal::Bool(true),
-                "#f" => LispVal::Bool(false),
-                _ => LispVal::Atom(s)
-            }
-        })
+        spaces
+            >> first: one_of!("^")
+            >> rest: many1!(parse_expr)
+            >> ({
+                let mut rest = rest;
+                let first = rest.remove(0);
+                rest.insert(0, LispVal::Atom(String::from("with-meta")));
+                rest.push(first);
+                LispVal::List(rest)
+            })
     )
 );
 
 named!(
-    parse_string<CompleteStr, LispVal>,
+    parse_keyword<CompleteStr, LispVal>,
     do_parse!(
-        char!('"') >> s: take_till!(is_double_quote) >> char!('"')
-            >> (LispVal::String(s.to_string()))
+        spaces
+            >> first: one_of!(":")
+            >> rest: many1!(alt!(letter | symbol | digit))
+            >> ({
+                let mut s = String::new();
+                let rest = rest.iter().collect::<String>();
+                s.push(first);
+                s.push_str(&rest);
+                LispVal::Keyword(s)
+            })
     )
+);
+
+named!(
+    parse_deref<CompleteStr, LispVal>,
+    do_parse!(
+        spaces
+            >> first: one_of!("@")
+            >> rest: many1!(parse_expr)
+            >> ({
+                let mut rest = rest;
+                rest.insert(0, LispVal::Atom(String::from("deref")));
+                LispVal::List(rest)
+            })
+    )
+);
+
+named!(
+    parse_atom<CompleteStr, LispVal>,
+    do_parse!(
+        spaces
+            >> first: alt!(letter | symbol)
+            >> rest: many0!(alt!(letter | symbol | digit))
+            >> ({
+                let mut s = String::new();
+                let rest = rest.into_iter().collect::<String>();
+                s.push(first);
+                s.push_str(&rest);
+                // TODO(me) - this is really hacky. How can we be more nuanced about
+                // negative numbers vs atoms.
+                if first == '-'
+                    && rest.len() > 0
+                    && rest.chars().all(|c| c.is_digit(10)) {
+                        // TODO(me) - Is this really the best way to return my own
+                        // error code???
+                        return Err(nom::Err::Error(nom::Context::Code(CompleteStr("temp"), nom::ErrorKind::Custom(3))));
+                    }
+                match s.as_ref() {
+                    "#t" => LispVal::Bool(true),
+                    "#f" => LispVal::Bool(false),
+                    _ => LispVal::Atom(s)
+                }
+            })
+    )
+);
+
+named!(parse_string<CompleteStr, LispVal>,
+       do_parse!(
+           spaces
+               >> parts: alt!(
+                   tag!(r#""""#)
+                       | delimited!(
+                           tag!("\""),
+                           escaped!(
+                               many1!(
+                                   alt!(
+                                       letter | digit | one_of!("!#$%&|*+-/:<=>?@^_ ()")
+                                   )
+                               ),
+                               '\\',
+                               one_of!("\"\\ntr")
+                           )
+                               ,
+                           tag!("\"")
+                       )
+               )
+               >> ({
+                   if parts.to_string() == r#""""# {
+                       LispVal::String(String::from(""))
+                   } else {
+                       LispVal::String(parts.to_string())
+                   }
+               })
+       )
 );
 
 named!(
     parse_number<CompleteStr, LispVal>,
     do_parse!(
-        tag: opt!(tag!("-"))
+        spaces
+            >> tag: opt!(tag!("-"))
             >> digits: many1!(digit)
             >> ({
                 let digits = digits.into_iter().collect::<String>();
@@ -68,9 +140,49 @@ named!(
     )
 );
 
+named!(parse_hash_map<CompleteStr, LispVal>,
+       do_parse!(
+           spaces
+               >> tag!("{")
+               >> x: do_parse!(
+                   spaces
+                       >> v: map!(
+                           separated_list!(spaces, parse_expr),
+                           |things| {
+                               // TODO(me) This can fail, figure out how to make
+                               // this return Result<LispVal, ParseError>
+                               let mut h = HashMap::new();
+                               things
+                                   .chunks(2)
+                                   .for_each(|chunk| {
+                                       h.insert_mut(chunk[0].clone(), chunk[1].clone());
+                                   });
+                               LispVal::Map(h)
+                           }
+                       )
+                       >> spaces
+                       >> (v)
+               )
+               >> spaces
+               >> tag!("}")
+               >> (x)
+       )
+);
 named!(
-    spaces<CompleteStr, ()>,
-    do_parse!(many0!(tag!(" ")) >> ())
+    parse_vector<CompleteStr, LispVal>,
+    do_parse!(
+        spaces
+            >> tag!("[")
+            >> x: do_parse!(
+                spaces
+                    >> v: map!(separated_list!(spaces, parse_expr), LispVal::Vector)
+                    >> spaces
+                    >> (v)
+            )
+            >> spaces
+            >> tag!("]")
+            >> (x)
+    )
 );
 
 named!(
@@ -100,9 +212,40 @@ named!(
 );
 
 named!(
+    parse_quasiquoted<CompleteStr, LispVal>,
+    do_parse!(
+        spaces
+            >> tag!("`")
+            >> x: parse_expr
+            >> (LispVal::List(vec!(LispVal::Atom(String::from("quasiquote")), x)))
+    )
+);
+
+named!(
+    parse_splicing_unquote<CompleteStr, LispVal>,
+    do_parse!(
+        spaces
+            >> tag!("~@")
+            >> x: parse_expr
+            >> (LispVal::List(vec!(LispVal::Atom(String::from("splice-unquote")), x)))
+    )
+);
+
+named!(
+    parse_unquote<CompleteStr, LispVal>,
+    do_parse!(
+        spaces
+            >> tag!("~")
+            >> x: parse_expr
+            >> (LispVal::List(vec!(LispVal::Atom(String::from("unquote")), x)))
+    )
+);
+
+named!(
     parse_quoted<CompleteStr, LispVal>,
     do_parse!(
-        tag!("'")
+        spaces
+            >> tag!("'")
             >> x: parse_expr
             >> (LispVal::List(vec!(LispVal::Atom(String::from("quote")), x)))
     )
@@ -126,11 +269,19 @@ named!(
 named!(
     parse_expr<CompleteStr, LispVal>,
     alt!(
-        parse_atom
+        parse_with_meta
+            | parse_deref
+            | parse_keyword
+            | parse_splicing_unquote
+            | parse_atom
             | parse_number
             | parse_string
             | parse_quoted
+            | parse_unquote
+            | parse_quasiquoted
             | parse_lists
+            | parse_vector
+            | parse_hash_map
     )
 );
 
@@ -148,6 +299,7 @@ pub fn parse(input: String) -> Result<LispVal, LispError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
 
     #[test]
     fn symbol_test() {
@@ -199,21 +351,30 @@ mod tests {
         assert_eq!(actual, LispVal::String(String::from("my string")))
     }
 
-    // #[test]
-    // fn string_parsing_with_escaped_quotes() {
-    //     let input = String::from("\"my \\\"string\"");
-    //     let input = CompleteStr(&input);
-    //     let (_, actual) = parse_string(input).unwrap();
-    //     assert_eq!(actual, LispVal::String(String::from("my \"string")))
-    // }
+    #[test]
+    fn string_parsing_with_escaped_quotes() {
+        let input = String::from(
+            r#""my \"string\" is great""#
+        );
+        let input = CompleteStr(&input);
+        let (_, actual) = parse_string(input).unwrap();
+        assert_eq!(actual,
+                   LispVal::String(
+                       String::from(r#"my \"string\" is great"#)
+                   ))
+    }
 
-    // #[test]
-    // fn string_parsing_with_all_escaped_chars() {
-    //     let input = String::from("\" \" \n \t \r \\ \"");
-    //     let input = CompleteStr(&input);
-    //     let (_, actual) = parse_string(input).unwrap();
-    //     assert_eq!(actual, LispVal::String(String::from("\" \n \t \n \\")))
-    // }
+    #[test]
+    fn string_parsing_with_all_escaped_chars() {
+        let input = String::from(
+            r#"  " \n \t \r "     "#
+        );
+        let input = CompleteStr(&input);
+        let (_, actual) = parse_string(input).unwrap();
+        assert_eq!(actual, LispVal::String(String::from(
+            r#" \n \t \r "#
+        )))
+    }
 
     #[test]
     fn number_parsing() {
@@ -286,6 +447,13 @@ mod tests {
     }
 
     #[test]
+    fn parsing_weird_atom() {
+        let input = CompleteStr("-123abc");
+        let (_, actual) = parse_expr(input).unwrap();
+        assert_eq!(actual, LispVal::Atom(String::from("-123abc")))
+    }
+
+    #[test]
     fn parse_list_test() {
         use self::LispVal::Number;
         let input = String::from("(1 2 3)");
@@ -296,6 +464,42 @@ mod tests {
                 Number(2),
                 Number(3)
             )))
+    }
+
+    #[test]
+    fn parse_list_strings_simplier() {
+        let input = String::from(r#"("hi there")"#);
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::List(
+            vec!(
+                LispVal::String(String::from("hi there"))
+            )
+        ))
+    }
+
+    #[test]
+    fn parse_list_strings_less_simplier() {
+        let input = String::from(r#"("hi there" "johnny")"#);
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::List(
+            vec!(
+                LispVal::String(String::from("hi there")),
+                LispVal::String(String::from("johnny"))
+            )
+        ))
+    }
+
+    #[test]
+    fn parse_list_strings() {
+        let input = String::from(r#"("hi there" "I am strings" "hooray")"#);
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::List(
+            vec!(
+                LispVal::String(String::from("hi there")),
+                LispVal::String(String::from("I am strings")),
+                LispVal::String(String::from("hooray")),
+            )
+        ))
     }
 
     #[test]
@@ -337,6 +541,27 @@ mod tests {
     }
 
     #[test]
+    fn parse_quasiquoted_test() {
+        let input = String::from("`hello");
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::List(
+            vec!(LispVal::Atom(String::from("quasiquote")),
+                 LispVal::Atom(String::from("hello")))))
+    }
+
+    #[test]
+    fn parse_quasiquoted_unquote_test() {
+        let input = String::from("`~1");
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::List(
+            vec!(LispVal::Atom(String::from("quasiquote")),
+                 LispVal::List(
+                     vec!(LispVal::Atom(String::from("unquote")),
+                          LispVal::Number(1))
+                 ))));
+    }
+
+    #[test]
     fn parse_atom_test() {
         let input = String::from("#t");
         let actual = parse(input).unwrap();
@@ -351,15 +576,119 @@ mod tests {
     }
 
     #[test]
+    fn parse_empty_string_test() {
+        let input = String::from(r#""""#);
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::String(String::from(r#""#)))
+    }
+
+    #[test]
+    fn parse_parens_string_test() {
+
+        let input = String::from(r#""abc (with parens)""#);
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::String(String::from(r#"abc (with parens)"#)))
+    }
+
+
+    #[test]
     fn parse_number_test() {
         let input = String::from("123");
         let actual = parse(input).unwrap();
         assert_eq!(actual, LispVal::Number(123))
     }
+
     #[test]
-    fn parsing_weird_atom() {
-        let input = CompleteStr("-123abc");
-        let (_, actual) = parse_expr(input).unwrap();
-        assert_eq!(actual, LispVal::Atom(String::from("-123abc")))
+    fn parse_with_weird_spaces() {
+        let input = String::from("       7         ");
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::Number(7))
+    }
+
+    #[test]
+    fn parse_keyword_test() {
+        let input = String::from(" :123");
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::Keyword(String::from(":123")))
+    }
+
+    #[test]
+    fn parse_vector_test() {
+        let input = String::from(" [ 1 2 3, 4] ");
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::Vector(
+            vec!(
+                LispVal::Number(1),
+                LispVal::Number(2),
+                LispVal::Number(3),
+                LispVal::Number(4),
+            )))
+    }
+
+    #[test]
+    fn parse_hash_map_test() {
+        let input = String::from(" { :key \"value\"} ");
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::Map(
+            hashmap!{
+                LispVal::Keyword(String::from(":key")) => LispVal::String(String::from("value"))
+            }
+        ))
+    }
+
+    #[test]
+    fn parse_hash_map_test_2() {
+        let input = String::from(r#"{1 "abc" }"#);
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::Map(
+            hashmap!{
+                LispVal::Number(1) => LispVal::String(String::from("abc"))
+            }
+        ))
+    }
+
+    #[test]
+    fn parse_hash_map_test_3() {
+        let input = String::from(r#"{"abc" 1}"#);
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::Map(
+            hashmap!{
+                LispVal::String(String::from("abc")) => LispVal::Number(1)
+            }
+        ))
+    }
+
+    // fn parse_whole_line_comment() {
+    //     let input = String::from("      ;; this is a comment '1");
+    //     let actual = parse(input).unwrap();
+    //     assert_eq!(actual, )
+    // }
+
+    #[test]
+    fn deref() {
+        let input = String::from(r#"@a"#);
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::List(
+            vec!(
+                LispVal::Atom(String::from("deref")),
+                LispVal::Atom(String::from("a")))
+        ))
+    }
+
+    #[test]
+    fn splicing_unqoute() {
+        let input = String::from("~@(1 2 3)");
+        let actual = parse(input).unwrap();
+        assert_eq!(actual, LispVal::List(
+            vec!(LispVal::Atom(String::from("splice-unquote")),
+                 LispVal::List(
+                     vec!(
+                         LispVal::Number(1),
+                         LispVal::Number(2),
+                         LispVal::Number(3)
+                     )
+                 )
+            )
+        ))
     }
 }

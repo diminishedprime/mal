@@ -6,3 +6,4 @@ authors = ["Matt Hamrick <matthewjhamrick@gmail.com>"]
 
 [dependencies]
 nom = "^4.0"
+im = "10.2"

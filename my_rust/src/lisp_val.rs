@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use std::fmt;
 use std::slice::SliceConcatExt;
+use im::HashMap;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum LispError {
@@ -36,7 +37,7 @@ impl Display for LispError {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum LispVal {
     Atom(String),
     List(Vec<LispVal>),
@@ -44,12 +45,40 @@ pub enum LispVal {
     Number(i32),
     String(String),
     Bool(bool),
+    Keyword(String),
+    Vector(Vec<LispVal>),
+    Map(HashMap<LispVal, LispVal>),
 }
 
 impl Display for LispVal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &LispVal::Atom(ref a) => write!(f, "'{}", a),
+            &LispVal::Map(ref m) => {
+                write!(f, "{{")?;
+                // TODO(me) - This seems overly complicated. Is there a way I
+                // can just call .join() on its own?
+                let parts = m
+                    .iter()
+                    .map(|(k, v)| format!("{} {}", k, v))
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                write!(f, "{}", parts)?;
+                write!(f, "}}")
+            },
+            &LispVal::Vector(ref v) => {
+                write!(f, "[")?;
+                // TODO(me) - This seems overly complicated. Is there a way I
+                // can just call .join() on its own?
+                let parts = v
+                    .iter()
+                    .map(|part| format!("{}", part))
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                write!(f, "{}", parts)?;
+                write!(f, "]")
+            }
+            &LispVal::Keyword(ref s) => write!(f, "{}", s),
+            &LispVal::Atom(ref a) => write!(f, "{}", a),
             &LispVal::List(ref l) => {
                 write!(f, "(")?;
                 // TODO(me) - This seems overly complicated. Is there a way I
@@ -96,7 +125,7 @@ mod tests {
     #[test]
     fn display_atom() {
         let atom = Atom(String::from("my_atom"));
-        assert_eq!(String::from("'my_atom"), format!("{}", atom));
+        assert_eq!(String::from("my_atom"), format!("{}", atom));
     }
 
     #[test]

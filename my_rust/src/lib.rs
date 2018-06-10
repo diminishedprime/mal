@@ -1,7 +1,11 @@
 #![feature(slice_patterns)]
 #![feature(slice_concat_ext)]
+
 #[macro_use]
 extern crate nom;
+
+#[macro_use]
+extern crate im;
 
 pub mod parser;
 pub mod lisp_val;
