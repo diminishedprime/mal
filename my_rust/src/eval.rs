@@ -2,7 +2,9 @@ use im::HashMap;
 use lisp_val::Environment;
 use lisp_val::LispError;
 use lisp_val::LispError::BadSpecialForm;
+use lisp_val::LispResult;
 use lisp_val::LispVal;
+use lisp_val::SpecialForm::{DefBang, If, LetStar, Quote};
 use lisp_val::{AtomContents, ListContents, MapContents, VecContents};
 use std::ops::Deref;
 
@@ -20,7 +22,7 @@ mod tests {
     use super::*;
     use parser;
 
-    fn parse_eval(s: &str) -> Result<LispVal, LispError> {
+    fn parse_eval(s: &str) -> LispResult {
         eval_start(parser::parse(s))
     }
 
@@ -160,7 +162,7 @@ fn apply_zero<A>(
     unwraper: fn(LispVal) -> Result<A, LispError>,
     op: fn(A, A) -> A,
     args: Vec<LispVal>,
-) -> Result<LispVal, LispError>
+) -> LispResult
 where
     A: ::std::fmt::Debug,
 {
@@ -180,7 +182,7 @@ fn apply_one<A>(
     uniop: fn(A) -> A,
     op: fn(A, A) -> A,
     args: Vec<LispVal>,
-) -> Result<LispVal, LispError> {
+) -> LispResult {
     if args.len() < 1 {
         return Err(LispError::NumArgs(1, LispVal::List(args)));
     } else if args.len() == 1 {
@@ -241,9 +243,7 @@ fn eval_primatives(
     }
 }
 
-use lisp_val::SpecialForm::{DefBang, If, LetStar, Quote};
-
-fn eval_list(env: &mut Environment, lisp_val: ListContents) -> Result<LispVal, LispError> {
+fn eval_list(env: &mut Environment, lisp_val: ListContents) -> LispResult {
     match &lisp_val[..] {
         &[] => Ok(LispVal::from(vec![])),
         &[LispVal::SpecialForm(LetStar), ref bindings, ref body] => {
@@ -297,7 +297,7 @@ fn eval_list(env: &mut Environment, lisp_val: ListContents) -> Result<LispVal, L
     }
 }
 
-fn eval_vector(env: &mut Environment, lisp_val: VecContents) -> Result<LispVal, LispError> {
+fn eval_vector(env: &mut Environment, lisp_val: VecContents) -> LispResult {
     Ok(LispVal::Vector(
         lisp_val
             .into_iter()
@@ -307,7 +307,7 @@ fn eval_vector(env: &mut Environment, lisp_val: VecContents) -> Result<LispVal, 
     ))
 }
 
-fn eval_hash_map(env: &mut Environment, lisp_val: MapContents) -> Result<LispVal, LispError> {
+fn eval_hash_map(env: &mut Environment, lisp_val: MapContents) -> LispResult {
     let initial: Result<HashMap<LispVal, LispVal>, LispError> = Ok(hashmap!());
     Ok(LispVal::Map(lisp_val.into_iter().fold(
         initial,
@@ -321,7 +321,7 @@ fn eval_hash_map(env: &mut Environment, lisp_val: MapContents) -> Result<LispVal
     )?))
 }
 
-fn eval_atom(env: &mut Environment, name: AtomContents) -> Result<LispVal, LispError> {
+fn eval_atom(env: &mut Environment, name: AtomContents) -> LispResult {
     if let Some(val) = env.get(&name) {
         // TODO(me) - Is this how Arcs work?
         Ok(val.deref().clone())
@@ -330,10 +330,7 @@ fn eval_atom(env: &mut Environment, name: AtomContents) -> Result<LispVal, LispE
     }
 }
 
-pub fn eval(
-    env: &mut Environment,
-    lisp_val: Result<LispVal, LispError>,
-) -> Result<LispVal, LispError> {
+pub fn eval(env: &mut Environment, lisp_val: LispResult) -> LispResult {
     let lisp_val = match lisp_val? {
         val @ LispVal::DottedList(_) => val,
         val @ LispVal::String(_) => val,
@@ -355,6 +352,6 @@ pub fn eval(
     Ok(lisp_val)
 }
 
-pub fn eval_start(lisp_val: Result<LispVal, LispError>) -> Result<LispVal, LispError> {
+pub fn eval_start(lisp_val: LispResult) -> LispResult {
     eval(&mut Environment::new(), lisp_val)
 }

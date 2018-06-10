@@ -4,6 +4,8 @@ use std::fmt::Display;
 use std::slice::SliceConcatExt;
 use std::sync::Arc;
 
+pub type LispResult = Result<LispVal, LispError>;
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum LispError {
     NumArgs(i32, LispVal),
@@ -115,13 +117,6 @@ pub enum SpecialForm {
     DefBang,
     LetStar,
 }
-
-pub struct ExecutionContext {
-    val: LispVal,
-    env: Environment,
-}
-
-type EvalContext = Result<ExecutionContext, LispError>;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum LispVal {
