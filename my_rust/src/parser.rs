@@ -2,6 +2,7 @@ use nom::types::CompleteStr;
 use nom;
 use lisp_val::LispVal;
 use lisp_val::LispError;
+use lisp_val::DottedListContents;
 use im::HashMap;
 
 named!(spaces<CompleteStr, ()>, do_parse!(
@@ -207,7 +208,11 @@ named!(
                     >> spaces
                     >> (val)
             )
-            >> (LispVal::DottedList(head, Box::new(tail)))
+            >> (LispVal::DottedList(
+                DottedListContents {
+                    head,
+                    tail: Box::new(tail),
+                }))
     )
 );
 
@@ -401,10 +406,15 @@ mod tests {
     #[test]
     fn dotted_list_parsing() {
         use self::LispVal::Number;
+        use lisp_val::DottedListContents;
+
         let input = CompleteStr("3 4 . 5");
         let (_, actual) = parse_dotted_list(input).unwrap();
-        assert_eq!(actual, LispVal::DottedList(vec!(Number(3), Number(4)),
-                                               Box::new(Number(5))
+        assert_eq!(actual, LispVal::DottedList(
+            DottedListContents {
+                head: vec!(Number(3), Number(4)),
+                tail: Box::new(Number(5))
+            }
         ))
     }
 
@@ -434,15 +444,18 @@ mod tests {
     #[test]
     fn parse_lists_test_dotted() {
         use self::LispVal::Number;
+        use lisp_val::DottedListContents;
         let input = CompleteStr("(1 2 3 . 4)");
         let (_, actual) = parse_lists(input).unwrap();
         assert_eq!(actual, LispVal::DottedList(
-            vec!(
-                Number(1),
-                Number(2),
-                Number(3)
-            ),
-            Box::new(Number(4))
+            DottedListContents {
+                head: vec!(
+                    Number(1),
+                    Number(2),
+                    Number(3)
+                ),
+                tail: Box::new(Number(4))
+            }
         ))
     }
 
@@ -519,15 +532,19 @@ mod tests {
     #[test]
     fn parse_dotted_list_test() {
         use self::LispVal::Number;
+        use lisp_val::DottedListContents;
+
         let input = String::from("(1 2 3 . 4)");
         let actual = parse(input).unwrap();
         assert_eq!(actual, LispVal::DottedList(
-            vec!(
-                Number(1),
-                Number(2),
-                Number(3)
-            ),
-            Box::new(Number(4))
+            DottedListContents {
+                head: vec!(
+                    Number(1),
+                    Number(2),
+                    Number(3)
+                ),
+                tail: Box::new(Number(4))
+            }
         ))
     }
 

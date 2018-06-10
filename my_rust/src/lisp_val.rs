@@ -37,11 +37,19 @@ impl Display for LispError {
     }
 }
 
+pub type ListContents = Vec<LispVal>;
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct DottedListContents {
+    pub head: ListContents,
+    pub tail: Box<LispVal>,
+}
+
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum LispVal {
     Atom(String),
-    List(Vec<LispVal>),
-    DottedList(Vec<LispVal>, Box<LispVal>),
+    List(ListContents),
+    DottedList(DottedListContents),
     Number(i32),
     String(String),
     Bool(bool),
@@ -91,15 +99,15 @@ impl Display for LispVal {
                 write!(f, "{}", parts)?;
                 write!(f, ")")
             }
-            &LispVal::DottedList(ref l, ref val) => {
+            &LispVal::DottedList(DottedListContents{ref head, ref tail}) => {
                 write!(f, "(")?;
-                let parts = l
+                let parts = head
                     .iter()
                     .map(|part| format!("{}", part))
                     .collect::<Vec<String>>()
                     .join(" ");
                 write!(f, "{}", parts)?;
-                write!(f, " . {}", val)?;
+                write!(f, " . {}", tail)?;
                 write!(f, ")")
             }
             &LispVal::Number(n) => write!(f, "{}", n),
@@ -136,7 +144,11 @@ mod tests {
 
     #[test]
     fn display_dottedlist() {
-        let dottedlist = DottedList(vec!(Bool(true), Bool(false)), Box::new(Bool(true)));
+        let dottedlist = DottedList(
+            DottedListContents {
+                head: vec!(Bool(true), Bool(false)),
+                tail: Box::new(Bool(true))
+            });
         assert_eq!(String::from("(#t #f . #t)"), format!("{}", dottedlist));
     }
 
@@ -168,7 +180,10 @@ mod tests {
     fn display_list_nested() {
         let one = Number(1);
         let two = LispVal::String(String::from("two"));
-        let three_and_four = DottedList(vec!(Number(3)), Box::new(Number(4)));
+        let three_and_four = DottedList(
+            DottedListContents {
+                head: vec!(Number(3)),
+                tail: Box::new(Number(4))});
 
         let list = List(vec!(one, two, three_and_four));
         assert_eq!(String::from("(1 \"two\" (3 . 4))"), format!("{}", list));

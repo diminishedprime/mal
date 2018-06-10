@@ -1,4 +1,5 @@
 use lisp_val::LispVal;
+use lisp_val::DottedListContents;
 use lisp_val::LispError;
 use lisp_val::LispError::BadSpecialForm;
 use im::HashMap;
@@ -54,9 +55,7 @@ mod tests {
     #[test]
     fn bad_addition() {
         let expr = List(vec!(easy_atom("+"), Number(2), easy_atom("hi")));
-        if let Err(BadSpecialForm(_, v)) = eval(Ok(expr)) {
-            assert_eq!(v, easy_atom("hi"))
-        } else {
+        if let Ok(_) = eval(Ok(expr)) {
             panic!("This should not eval successfully.")
         }
     }
@@ -302,13 +301,18 @@ fn apply_zero<A>(
     op: fn(A, A) -> A,
     args: Vec<LispVal>
 ) -> Result<LispVal, LispError>
+where
+    A: ::std::fmt::Debug,
 {
     let mut left = identity;
     let mut iter = args.into_iter();
     while let Some(right) = iter.next() {
+        println!("{:?}", right);
         let right = unwraper(eval(Ok(right))?)?;
+        println!("{:?}", right); 
         left = op(left, right);
     }
+    println!("{:?}", left);
     Ok(pure_(left))
 }
 
@@ -346,11 +350,11 @@ fn eval_car(args: Vec<LispVal>) -> Result<LispVal, LispError> {
             }
             eval(Ok(v.into_iter().nth(0).unwrap()))?
         }
-        LispVal::DottedList(v, _) => {
-            if v.len() < 1 {
+        LispVal::DottedList(DottedListContents{head, ..}) => {
+            if head.len() < 1 {
                 return Err(LispError::TypeMismatch(String::from("pair"), LispVal::String(String::from("need to figure this out"))));
             }
-            eval(Ok(v.into_iter().nth(0).unwrap()))?
+            eval(Ok(head.into_iter().nth(0).unwrap()))?
         },
         _ => {
             return Err(LispError::TypeMismatch(String::from("pair"), LispVal::String(String::from("need to figure this out"))));
@@ -400,73 +404,91 @@ fn eval_primatives(func: &str, args: Vec<LispVal>) -> Result<Option<LispVal>, Li
     }
 }
 
+pub fn eval_list(lisp_val: LispVal) -> Result<LispVal, LispError> {
+    if let LispVal::List(l) = lisp_val {
+        if l.len() ==  0 {
+            Ok(LispVal::List(vec!()))
+        } else if l.len() == 4 && l[0] == LispVal::Atom(String::from("if")) {
+            let mut l = l.into_iter();
+            // TODO(me) - There's sure to be a better way of doing this. At
+            // this point I know there are 4 entries, but I can't get them
+            // via index because that counts as moving into borrowed
+            // context.
+            let pred = Ok(l.clone().nth(1).unwrap());
+            let conseq = Ok(l.clone().nth(2).unwrap());
+            let alt = Ok(l.clone().nth(3).unwrap());
+            if let LispVal::Bool(false) = eval(pred)? {
+                eval(alt)
+            } else {
+                eval(conseq)
+            }
+        } else if l.len() == 2 && l[0] == LispVal::Atom(String::from("quote")) {
+            Ok(l.into_iter().nth(1).expect("This cannot happen"))
+        } else if let Some(s) = unpack_atom(&l[0]) {
+            let args = l.into_iter()
+            // We don't want the first since it's the function.
+                .skip(1)
+                .collect();
+            if let Some(result) = eval_primatives(&s, args)? {
+                println!("Thing {:?}", result);
+                Ok(result)
+            } else {
+                return Err(LispError::NotFunction(String::from("Not a function"), s))
+            }
+        } else {
+            return Err(BadSpecialForm(
+                String::from("Unrecognized special form"),
+                LispVal::List(l)));
+        }
+    } else {
+        panic!("cannot happen");
+    }
+}
+
+pub fn eval_vector(lisp_val: LispVal) -> Result<LispVal, LispError> {
+    if let LispVal::Vector(v) = lisp_val {
+        Ok(LispVal::Vector(v.into_iter()
+                           .map(Ok)
+                           .map(eval)
+                           .collect::<Result<Vec<_>, _>>()?))
+    } else {
+        panic!("cannot happen");
+    }
+}
+
+pub fn eval_hash_map(lisp_val: LispVal) -> Result<LispVal, LispError> {
+    if let LispVal::Map(m) = lisp_val {
+        let initial: Result<HashMap<LispVal, LispVal>, LispError>
+            = Ok(hashmap!());
+        let h = m.into_iter()
+            .fold(initial, |acc, (k, v)| {
+                if let Ok(acc) = acc {
+                    Ok(acc.insert(
+                        eval(Ok((*k).clone()))?,
+                        eval(Ok((*v).clone()))?)
+                    )
+                } else {
+                    acc
+                }
+            });
+        Ok(LispVal::Map(h?))
+    } else {
+        panic!("cannot happen");
+    }
+}
+
+
 pub fn eval(lisp_val: Result<LispVal, LispError>) -> Result<LispVal, LispError> {
     let lisp_val = match lisp_val? {
+        val @ LispVal::Atom(_) => val,
+        val @ LispVal::DottedList(_) => val,
         val @ LispVal::String(_) => val,
         val @ LispVal::Number(_) => val,
         val @ LispVal::Bool(_) => val,
         val @ LispVal::Keyword(_) => val,
-        LispVal::List(l) => {
-            if l.len() ==  0 {
-                LispVal::List(vec!())
-            } else if l.len() == 4 && l[0] == LispVal::Atom(String::from("if")) {
-                let mut l = l.into_iter();
-                // TODO(me) - There's sure to be a better way of doing this. At
-                // this point I know there are 4 entries, but I can't get them
-                // via index because that counts as moving into borrowed
-                // context.
-                let pred = Ok(l.clone().nth(1).unwrap());
-                let conseq = Ok(l.clone().nth(2).unwrap());
-                let alt = Ok(l.clone().nth(3).unwrap());
-                if let LispVal::Bool(false) = eval(pred)? {
-                    eval(alt)?
-                } else {
-                    eval(conseq)?
-                }
-            } else if l.len() == 2 && l[0] == LispVal::Atom(String::from("quote")) {
-                l.into_iter().nth(1).expect("This cannot happen")
-            } else if let Some(s) = unpack_atom(&l[0]) {
-                let args = l.into_iter()
-                // We don't want the first since it's the function.
-                    .skip(1)
-                    .collect();
-                if let Some(result) = eval_primatives(&s, args)? {
-                    result
-                } else {
-                    return Err(LispError::NotFunction(String::from("Not a function"), s))
-                }
-            } else {
-                return Err(BadSpecialForm(
-                    String::from("Unrecognized special form"),
-                    LispVal::List(l)));
-            }
-        },
-        LispVal::Vector(v) => {
-            LispVal::Vector(v.into_iter()
-                            .map(Ok)
-                            .map(eval)
-                            .collect::<Result<Vec<_>, _>>()?)
-        }
-        LispVal::Map(m) => {
-            let initial: Result<HashMap<LispVal, LispVal>, LispError>
-                = Ok(hashmap!());
-            let h = m.into_iter()
-                .fold(initial, |acc, (k, v)| {
-                    if let Ok(acc) = acc {
-                        Ok(acc.insert(
-                            eval(Ok((*k).clone()))?,
-                            eval(Ok((*v).clone()))?)
-                        )
-                    } else {
-                        acc
-                    }
-                });
-            LispVal::Map(h?)
-        }
-        val => return Err(BadSpecialForm(
-            String::from("Unrecognized special form"),
-            val))
-
+        val @ LispVal::List(_) => eval_list(val)?,
+        val @ LispVal::Vector(_) => eval_vector(val)?,
+        val @ LispVal::Map(_) => eval_hash_map(val)?,
     };
     Ok(lisp_val)
 }
