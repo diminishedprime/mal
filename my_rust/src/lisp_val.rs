@@ -4,7 +4,19 @@ use std::fmt::Display;
 use std::slice::SliceConcatExt;
 use std::sync::Arc;
 
-pub type LispResult = Result<LispVal, LispError>;
+#[derive(PartialEq, Debug, Clone)]
+pub struct ExecyBoi {
+    pub val: LispVal,
+    pub env: Environment,
+}
+
+impl Display for ExecyBoi {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.val)
+    }
+}
+
+pub type LispResult = Result<ExecyBoi, LispError>;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum LispError {
@@ -64,6 +76,7 @@ impl Clone for Environment {
     }
 }
 
+#[derive(PartialEq, Debug)]
 pub struct Environment {
     previous: Box<Option<Environment>>,
     contents: HashMap<AtomContents, LispVal>,

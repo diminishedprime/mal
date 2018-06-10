@@ -18,7 +18,17 @@ pub fn main() {
     loop {
         read::read("user> ")
             .map(|input| parser::parse(&input))
-            .map(|parsed| eval::eval(&mut env, parsed))
+            .map(|parsed| {
+                eval::eval(lisp_val::ExecyBoi {
+                    val: parsed.unwrap(),
+                    env: env.clone(),
+                })
+            })
+            .map(|last| {
+                let last = last.unwrap();
+                env = last.env;
+                last.val
+            })
             .map(print::print)
             .expect("This shouldn't happen");
     }

@@ -1,5 +1,7 @@
 use im::HashMap;
 use lisp_val::DottedListContents;
+use lisp_val::Environment;
+use lisp_val::ExecyBoi;
 use lisp_val::LispError;
 use lisp_val::LispVal;
 use lisp_val::SpecialForm;
