@@ -309,12 +309,9 @@ where
     let mut left = identity;
     let mut iter = args.into_iter();
     while let Some(right) = iter.next() {
-        println!("{:?}", right);
         let right = unwraper(eval(Ok(right))?)?;
-        println!("{:?}", right); 
         left = op(left, right);
     }
-    println!("{:?}", left);
     Ok(pure_(left))
 }
 
@@ -432,7 +429,6 @@ pub fn eval_list(lisp_val: LispVal) -> Result<LispVal, LispError> {
                 .skip(1)
                 .collect();
             if let Some(result) = eval_primatives(&s, args)? {
-                println!("Thing {:?}", result);
                 Ok(result)
             } else {
                 return Err(LispError::NotFunction(String::from("Not a function"), s))
