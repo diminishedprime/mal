@@ -36,6 +36,8 @@ impl Display for LispError {
     }
 }
 
+pub type AtomContents = String;
+
 pub type ListContents = Vec<LispVal>;
 
 pub type VecContents = Vec<LispVal>;
@@ -60,11 +62,9 @@ impl Clone for Environment {
     }
 }
 
-type Name = String;
-
 pub struct Environment {
     previous: Box<Option<Environment>>,
-    contents: HashMap<Name, LispVal>,
+    contents: HashMap<AtomContents, LispVal>,
 }
 
 impl Environment {
@@ -83,11 +83,11 @@ impl Environment {
         }
     }
 
-    pub fn set_mut(&mut self, key: Name, val: LispVal) {
+    pub fn set_mut(&mut self, key: AtomContents, val: LispVal) {
         self.contents.insert_mut(key, val)
     }
 
-    pub fn set(&self, key: Name, val: LispVal) -> Self {
+    pub fn set(&self, key: AtomContents, val: LispVal) -> Self {
         let contents = self.contents.insert(key, val);
         Environment {
             contents,
@@ -97,7 +97,7 @@ impl Environment {
 
     // TODO(me) - I need to figure out how Arcs work better. I'm not really sure
     // why I have to do this as an arc (why can't I dereference the value?)
-    pub fn get(&self, key: &Name) -> Option<Arc<LispVal>> {
+    pub fn get(&self, key: &AtomContents) -> Option<Arc<LispVal>> {
         if let Some(val) = self.contents.get(key) {
             Some(val)
         } else if let Some(ref previous) = *self.previous {
@@ -116,6 +116,13 @@ pub enum SpecialForm {
     LetStar,
 }
 
+pub struct ExecutionContext {
+    val: LispVal,
+    env: Environment,
+}
+
+type EvalContext = Result<ExecutionContext, LispError>;
+
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum LispVal {
     True,
@@ -125,7 +132,7 @@ pub enum LispVal {
 
     String(String),
     SpecialForm(SpecialForm),
-    Atom(String),
+    Atom(AtomContents),
     Keyword(String),
 
     Map(MapContents),

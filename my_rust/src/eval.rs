@@ -1,10 +1,9 @@
 use im::HashMap;
-use lisp_val::DottedListContents;
 use lisp_val::Environment;
 use lisp_val::LispError;
 use lisp_val::LispError::BadSpecialForm;
 use lisp_val::LispVal;
-use lisp_val::{ListContents, MapContents, VecContents};
+use lisp_val::{AtomContents, ListContents, MapContents, VecContents};
 use std::ops::Deref;
 
 #[cfg(test)]
@@ -16,10 +15,8 @@ mod tests {
 
     use self::LispError::NumArgs;
     use self::LispVal::Atom;
-    use self::LispVal::False;
     use self::LispVal::List;
     use self::LispVal::Number;
-    use self::LispVal::True;
     use super::*;
     use parser;
 
@@ -99,16 +96,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn equality_two_args_same() {
-        let expr = List(vec![
-            easy_atom("="),
-            List(vec![easy_atom("+"), Number(2), Number(3)]),
-            List(vec![easy_atom("+"), Number(3), Number(2)]),
-        ]);
-        assert_eq!(eval_start(Ok(expr)), Ok(True));
-    }
-
     fn easy_str(s: &str) -> LispVal {
         LispVal::String(String::from(s))
     }
@@ -123,12 +110,6 @@ mod tests {
     fn if_works_false() {
         let expr = parser::parse(r#"(if #f "hi" "there")"#);
         assert_eq!(eval_start(expr), Ok(easy_str("there")))
-    }
-
-    #[test]
-    fn car_test() {
-        let expr = List(vec![easy_atom("car"), List(vec![True, False])]);
-        assert_eq!(eval_start(Ok(expr)), Ok(True));
     }
 
     #[test]
@@ -165,57 +146,11 @@ fn unpack_list_or_vec(val: LispVal) -> Result<Vec<LispVal>, LispError> {
     }
 }
 
-fn unpack_list(val: LispVal) -> Result<ListContents, LispError> {
-    match val {
-        LispVal::List(lc) => Ok(lc),
-        _ => Err(LispError::TypeMismatch(String::from("list"), val)),
-    }
-}
-
 fn unpack_num(val: LispVal) -> Result<i32, LispError> {
     match val {
         LispVal::Number(n) => Ok(n),
         _ => Err(LispError::TypeMismatch(String::from("number"), val)),
     }
-}
-
-fn unpack_bool(val: LispVal) -> Result<bool, LispError> {
-    match val {
-        LispVal::True => Ok(true),
-        LispVal::False => Ok(false),
-        _ => Err(LispError::TypeMismatch(String::from("bool"), val)),
-    }
-}
-
-fn unpack_string(val: LispVal) -> Result<String, LispError> {
-    match val {
-        LispVal::String(n) => Ok(n),
-        _ => Err(LispError::TypeMismatch(String::from("string"), val)),
-    }
-}
-
-fn generic_binop<A>(
-    env: &mut Environment,
-    unpacker: fn(LispVal) -> Result<A, LispError>,
-    op: fn(A, A) -> LispVal,
-    args: Vec<LispVal>,
-) -> Result<LispVal, LispError> {
-    if args.len() != 2 {
-        return Err(LispError::NumArgs(2, LispVal::List(args)));
-    }
-    let unpacked_args = args
-        .into_iter()
-        .map(Ok)
-        .map(|a| eval(env, a))
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .map(unpacker)
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut iter = unpacked_args.into_iter();
-    let left = iter.next().unwrap();
-    let right = iter.next().unwrap();
-    let result = op(left, right);
-    Ok(result)
 }
 
 fn apply_zero<A>(
@@ -261,24 +196,6 @@ fn apply_one<A>(
     Ok(pure_(left))
 }
 
-// TODO(me) - Add tests for these branches
-// TODO(me) - Make a special form for car/cdr
-// TODO(me) - change car/cdr to first/rest
-fn eval_car(env: &mut Environment, args: Vec<LispVal>) -> Result<LispVal, LispError> {
-    match &args[..] {
-        &[LispVal::List(ref lc)] => eval(env, Ok(lc[0].clone())),
-        &[LispVal::Vector(ref lc)] => eval(env, Ok(lc[0].clone())),
-        &[LispVal::DottedList(DottedListContents { ref head, .. })] => {
-            eval(env, Ok(head[0].clone()))
-        }
-        &[ref val] => Err(LispError::TypeMismatch(String::from("List"), val.clone())),
-        _ => Err(LispError::NumArgs(
-            args.len() as i32,
-            LispVal::from(args.clone()),
-        )),
-    }
-}
-
 fn eval_primatives(
     env: &mut Environment,
     func: &str,
@@ -320,89 +237,6 @@ fn eval_primatives(
             |a, b| a / b,
             args,
         )?)),
-        // TODO(me) - when I feel like it...
-        // "mod" => Some(Box::new(|a, b| { a / b})),
-        // "quotient" => Some(Box::new(|a, b| { a / b})),
-        // "remainder" => Some(Box::new(|a, b| { a / b})),
-        "=" => Ok(Some(generic_binop(
-            env,
-            unpack_num,
-            |a, b| LispVal::from(a == b),
-            args,
-        )?)),
-        "<" => Ok(Some(generic_binop(
-            env,
-            unpack_num,
-            |a, b| LispVal::from(a < b),
-            args,
-        )?)),
-        ">" => Ok(Some(generic_binop(
-            env,
-            unpack_num,
-            |a, b| LispVal::from(a > b),
-            args,
-        )?)),
-        "/=" => Ok(Some(generic_binop(
-            env,
-            unpack_num,
-            |a, b| LispVal::from(a != b),
-            args,
-        )?)),
-        ">=" => Ok(Some(generic_binop(
-            env,
-            unpack_num,
-            |a, b| LispVal::from(a >= b),
-            args,
-        )?)),
-        "<=" => Ok(Some(generic_binop(
-            env,
-            unpack_num,
-            |a, b| LispVal::from(a <= b),
-            args,
-        )?)),
-        "&&" => Ok(Some(generic_binop(
-            env,
-            unpack_bool,
-            |a, b| LispVal::from(a && b),
-            args,
-        )?)),
-        "||" => Ok(Some(generic_binop(
-            env,
-            unpack_bool,
-            |a, b| LispVal::from(a || b),
-            args,
-        )?)),
-        "string=?" => Ok(Some(generic_binop(
-            env,
-            unpack_string,
-            |a, b| LispVal::from(a == b),
-            args,
-        )?)),
-        "string<?" => Ok(Some(generic_binop(
-            env,
-            unpack_string,
-            |a, b| LispVal::from(a <= b),
-            args,
-        )?)),
-        "string>?" => Ok(Some(generic_binop(
-            env,
-            unpack_string,
-            |a, b| LispVal::from(a >= b),
-            args,
-        )?)),
-        "string<=?" => Ok(Some(generic_binop(
-            env,
-            unpack_string,
-            |a, b| LispVal::from(a <= b),
-            args,
-        )?)),
-        "string>=?" => Ok(Some(generic_binop(
-            env,
-            unpack_string,
-            |a, b| LispVal::from(a >= b),
-            args,
-        )?)),
-        "car" => Ok(Some(eval_car(env, args)?)),
         _ => Ok(None),
     }
 }
@@ -487,25 +321,27 @@ fn eval_hash_map(env: &mut Environment, lisp_val: MapContents) -> Result<LispVal
     )?))
 }
 
+fn eval_atom(env: &mut Environment, name: AtomContents) -> Result<LispVal, LispError> {
+    if let Some(val) = env.get(&name) {
+        // TODO(me) - Is this how Arcs work?
+        Ok(val.deref().clone())
+    } else {
+        return Err(LispError::UnboundVar(name.clone()));
+    }
+}
+
 pub fn eval(
     env: &mut Environment,
     lisp_val: Result<LispVal, LispError>,
 ) -> Result<LispVal, LispError> {
     let lisp_val = match lisp_val? {
-        LispVal::Atom(ref name) => {
-            if let Some(val) = env.get(name) {
-                // TODO(me) - Is this how Arcs work?
-                val.deref().clone()
-            } else {
-                return Err(LispError::UnboundVar(name.clone()));
-            }
-        }
         val @ LispVal::DottedList(_) => val,
         val @ LispVal::String(_) => val,
         val @ LispVal::Number(_) => val,
         val @ LispVal::True => val,
         val @ LispVal::False => val,
         val @ LispVal::Keyword(_) => val,
+        LispVal::Atom(ac) => eval_atom(env, ac)?,
         LispVal::List(lc) => eval_list(env, lc)?,
         LispVal::Vector(vc) => eval_vector(env, vc)?,
         LispVal::Map(mc) => eval_hash_map(env, mc)?,
