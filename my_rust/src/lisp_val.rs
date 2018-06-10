@@ -39,6 +39,10 @@ impl Display for LispError {
 
 pub type ListContents = Vec<LispVal>;
 
+pub type VecContents = Vec<LispVal>;
+
+pub type MapContents = HashMap<LispVal, LispVal>;
+
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct DottedListContents {
     pub head: ListContents,
@@ -47,26 +51,70 @@ pub struct DottedListContents {
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum LispVal {
-    Atom(String),
-    List(ListContents),
-    DottedList(DottedListContents),
-    Number(i32),
-    String(String),
     True,
     False,
+
+    Number(i32),
+
+    String(String),
+    Atom(String),
     Keyword(String),
-    Vector(Vec<LispVal>),
-    Map(HashMap<LispVal, LispVal>),
+
+    Map(MapContents),
+    List(ListContents),
+    DottedList(DottedListContents),
+    Vector(VecContents),
 }
 
 impl LispVal {
-    // TODO(me) - is there some sort of "from" trait?
-    pub fn bool_for(b: bool) -> LispVal {
+    pub fn atom_from(s: &str) -> LispVal {
+        LispVal::Atom(s.to_owned())
+    }
+    pub fn string_from(s: &str) -> LispVal {
+        LispVal::String(s.to_owned())
+    }
+    pub fn keyword_from(s: &str) -> LispVal {
+        LispVal::Keyword(s.to_owned())
+    }
+}
+
+impl From<MapContents> for LispVal {
+    fn from(mc: MapContents) -> Self {
+        LispVal::Map(mc)
+    }
+}
+
+impl From<String> for LispVal {
+    fn from(s: String) -> Self {
+        LispVal::String(s)
+    }
+}
+
+impl From<i32> for LispVal {
+    fn from(i: i32) -> Self {
+        LispVal::Number(i)
+    }
+}
+
+impl From<bool> for LispVal {
+    fn from(b: bool) -> Self {
         if b {
             LispVal::True
         } else {
             LispVal::False
         }
+    }
+}
+
+impl From<ListContents> for LispVal {
+    fn from(lc: ListContents) -> Self {
+        LispVal::List(lc)
+    }
+}
+
+impl From<DottedListContents> for LispVal {
+    fn from(lc: DottedListContents) -> Self {
+        LispVal::DottedList(lc)
     }
 }
 
@@ -133,29 +181,25 @@ impl Display for LispVal {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lisp_val::LispVal::Atom;
-    use lisp_val::LispVal::List;
-    use lisp_val::LispVal::DottedList;
+    use lisp_val::LispVal;
     use lisp_val::LispVal::True;
     use lisp_val::LispVal::False;
-    use lisp_val::LispVal::Number;
-    // use lisp_val::LispError::TypeMismatch;
 
     #[test]
     fn display_atom() {
-        let atom = Atom(String::from("my_atom"));
+        let atom = LispVal::atom_from("my_atom");
         assert_eq!(String::from("my_atom"), format!("{}", atom));
     }
 
     #[test]
     fn display_list() {
-        let list = List(vec!(True, False));
+        let list = LispVal::from(vec!(True, False));
         assert_eq!(String::from("(#t #f)"), format!("{}", list));
     }
 
     #[test]
     fn display_dottedlist() {
-        let dottedlist = DottedList(
+        let dottedlist = LispVal::from(
             DottedListContents {
                 head: vec!(True, False),
                 tail: Box::new(True)
@@ -165,7 +209,7 @@ mod tests {
 
     #[test]
     fn display_number() {
-        let number = Number(3);
+        let number = LispVal::from(3);
         assert_eq!(String::from("3"), format!("{}", number));
     }
 
@@ -183,26 +227,26 @@ mod tests {
 
     #[test]
     fn display_string() {
-        let string = LispVal::String(String::from("hello"));
+        let string = LispVal::string_from("hello");
         assert_eq!(String::from("\"hello\""), format!("{}", string));
     }
 
     #[test]
     fn display_list_nested() {
-        let one = Number(1);
-        let two = LispVal::String(String::from("two"));
-        let three_and_four = DottedList(
+        let one = LispVal::from(1);
+        let two = LispVal::string_from("two");
+        let three_and_four = LispVal::from(
             DottedListContents {
-                head: vec!(Number(3)),
-                tail: Box::new(Number(4))});
+                head: vec!(LispVal::from(3)),
+                tail: Box::new(LispVal::from(4))});
 
-        let list = List(vec!(one, two, three_and_four));
+        let list = LispVal::from(vec!(one, two, three_and_four));
         assert_eq!(String::from("(1 \"two\" (3 . 4))"), format!("{}", list));
     }
 
     // #[test]
     // fn display_type_mismatch() {
-    //     let err = TypeMismatch(String::from("thing"), Number(3));
+    //     let err = TypeMismatch(String::from("thing"), LispVal::from(3));
     //     let actual = format!("{}", err);
     //     assert_eq!(actual, String::from(""));
     // }

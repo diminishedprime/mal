@@ -183,7 +183,7 @@ mod tests {
     }
 
     fn easy_bool(b: bool) -> LispVal {
-        LispVal::bool_for(b)
+        LispVal::from(b)
     }
 
     fn easy_str(s: &str) -> LispVal {
@@ -387,20 +387,20 @@ fn eval_primatives(func: &str, args: Vec<LispVal>) -> Result<Option<LispVal>, Li
         // "quotient" => Some(Box::new(|a, b| { a / b})),
         // "remainder" => Some(Box::new(|a, b| { a / b})),
         "=" => Ok(Some(
-            generic_binop(unpack_num, |a, b| LispVal::bool_for(a == b), args)?
+            generic_binop(unpack_num, |a, b| LispVal::from(a == b), args)?
         )),
-        "<" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::bool_for(a < b), args)?)),
-        ">" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::bool_for(a > b), args)?)),
-        "/=" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::bool_for(a != b), args)?)),
-        ">=" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::bool_for(a >= b), args)?)),
-        "<=" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::bool_for(a <= b), args)?)),
-        "&&" => Ok(Some(generic_binop(unpack_bool, |a, b| LispVal::bool_for(a && b), args)?)),
-        "||" => Ok(Some(generic_binop(unpack_bool, |a, b| LispVal::bool_for(a || b), args)?)),
-        "string=?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::bool_for(a == b), args)?)),
-        "string<?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::bool_for(a <= b), args)?)),
-        "string>?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::bool_for(a >= b), args)?)),
-        "string<=?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::bool_for(a <= b), args)?)),
-        "string>=?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::bool_for(a >= b), args)?)),
+        "<" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::from(a < b), args)?)),
+        ">" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::from(a > b), args)?)),
+        "/=" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::from(a != b), args)?)),
+        ">=" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::from(a >= b), args)?)),
+        "<=" => Ok(Some(generic_binop(unpack_num, |a, b| LispVal::from(a <= b), args)?)),
+        "&&" => Ok(Some(generic_binop(unpack_bool, |a, b| LispVal::from(a && b), args)?)),
+        "||" => Ok(Some(generic_binop(unpack_bool, |a, b| LispVal::from(a || b), args)?)),
+        "string=?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::from(a == b), args)?)),
+        "string<?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::from(a <= b), args)?)),
+        "string>?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::from(a >= b), args)?)),
+        "string<=?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::from(a <= b), args)?)),
+        "string>=?" => Ok(Some(generic_binop(unpack_string, |a, b| LispVal::from(a >= b), args)?)),
         "car" => Ok(Some(eval_car(args)?)),
         _ => Ok(None)
     }
