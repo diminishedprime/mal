@@ -14,11 +14,12 @@ pub mod print;
 pub mod read;
 
 pub fn main() {
+    let mut env = lisp_val::Environment::new();
     loop {
         read::read("user> ")
-            .map(|s| parser::parse(&s))
-            .map(eval::eval_start)
+            .map(|input| parser::parse(&input))
+            .map(|parsed| eval::eval(&mut env, parsed))
             .map(print::print)
-            .expect("This should not happen");
+            .expect("This shouldn't happen");
     }
 }

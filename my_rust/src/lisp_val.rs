@@ -2,14 +2,15 @@ use im::HashMap;
 use std::fmt;
 use std::fmt::Display;
 use std::slice::SliceConcatExt;
+use std::sync::Arc;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum LispError {
     NumArgs(i32, LispVal),
     TypeMismatch(String, LispVal),
     BadSpecialForm(String, LispVal),
-    NotFunction(String, String),
-    // UnboundVar(String, String),
+    NotFunction(String),
+    UnboundVar(String),
     // Default(String),
     Parse(String),
 }
@@ -21,12 +22,13 @@ impl Display for LispError {
                 write!(f, "Invalid type: expected {}, found {}", expected, found)
             }
             &LispError::BadSpecialForm(ref message, ref form) => write!(f, "{}: {}", message, form),
-            &LispError::NotFunction(ref message, ref func) => write!(f, "{}: {}", message, func),
+            &LispError::NotFunction(ref func) => write!(f, "{} is not a bound function.", func),
             &LispError::NumArgs(ref expected, ref found) => {
                 write!(f, "Expected: {} args; found values {}", expected, found)
             }
-            // &LispError::UnboundVar(ref a, ref b) =>
-            //     write!(f, "a: {} b: {}", a, b),
+            &LispError::UnboundVar(ref name) => {
+                write!(f, "{} was not bound in the current environment.", name)
+            }
             // &LispError::Default(ref a) =>
             //     write!(f, "a: {}", a),
             &LispError::Parse(ref a) => write!(f, "a: {}", a),
@@ -66,10 +68,42 @@ pub struct Environment {
 }
 
 impl Environment {
+    pub fn shadowing(env: Environment) -> Environment {
+        Environment {
+            previous: Box::new(Some(env)),
+            contents: hashmap!(),
+        }
+    }
+
     pub fn new() -> Self {
         Environment {
+            // I think this needs to be a Rc?
             previous: Box::new(None),
             contents: hashmap!(),
+        }
+    }
+
+    pub fn set_mut(&mut self, key: Name, val: LispVal) {
+        self.contents.insert_mut(key, val)
+    }
+
+    pub fn set(&self, key: Name, val: LispVal) -> Self {
+        let contents = self.contents.insert(key, val);
+        Environment {
+            contents,
+            previous: self.previous.clone(),
+        }
+    }
+
+    // TODO(me) - I need to figure out how Arcs work better. I'm not really sure
+    // why I have to do this as an arc (why can't I dereference the value?)
+    pub fn get(&self, key: &Name) -> Option<Arc<LispVal>> {
+        if let Some(val) = self.contents.get(key) {
+            Some(val)
+        } else if let Some(ref previous) = *self.previous {
+            previous.get(key)
+        } else {
+            None
         }
     }
 }
@@ -78,6 +112,8 @@ impl Environment {
 pub enum SpecialForm {
     If,
     Quote,
+    DefBang,
+    LetStar,
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -155,6 +191,8 @@ impl Display for SpecialForm {
         match self {
             &SpecialForm::If => write!(f, "if"),
             &SpecialForm::Quote => write!(f, "quote"),
+            &SpecialForm::DefBang => write!(f, "def!"),
+            &SpecialForm::LetStar => write!(f, "let*"),
         }
     }
 }

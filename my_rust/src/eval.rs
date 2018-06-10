@@ -5,6 +5,7 @@ use lisp_val::LispError;
 use lisp_val::LispError::BadSpecialForm;
 use lisp_val::LispVal;
 use lisp_val::{ListContents, MapContents, VecContents};
+use std::ops::Deref;
 
 #[cfg(test)]
 mod tests {
@@ -130,15 +131,46 @@ mod tests {
         assert_eq!(eval_start(Ok(expr)), Ok(True));
     }
 
+    #[test]
+    fn def_bang_test() {
+        let expr1 = parser::parse(r#"(def! a "hi there")"#);
+        let expr2 = parser::parse("a");
+        let mut env = Environment::new();
+        let actual = eval(&mut env, expr1).and_then(|_| eval(&mut env, expr2));
+        assert_eq!(actual, Ok(LispVal::string_from("hi there")))
+    }
+
+    #[test]
+    fn let_star_test() {
+        let input = "(let* (q (+ 1 2)) q)";
+        let parsed = parser::parse(input);
+        let actual = eval_start(parsed).unwrap();
+        assert_eq!(actual, LispVal::from(3))
+    }
+
 }
 
-// fn unpack_atom(lisp_val: &LispVal) -> Option<String> {
-//     if let LispVal::Atom(s) = lisp_val {
-//         Some(s.to_string())
-//     } else {
-//         None
-//     }
-// }
+fn unpack_atom(val: LispVal) -> Result<String, LispError> {
+    match val {
+        LispVal::Atom(a) => Ok(a),
+        _ => Err(LispError::TypeMismatch(String::from("list"), val)),
+    }
+}
+
+fn unpack_list_or_vec(val: LispVal) -> Result<Vec<LispVal>, LispError> {
+    match val {
+        LispVal::List(lc) => Ok(lc),
+        LispVal::Vector(vc) => Ok(vc),
+        _ => Err(LispError::TypeMismatch(String::from("list"), val)),
+    }
+}
+
+fn unpack_list(val: LispVal) -> Result<ListContents, LispError> {
+    match val {
+        LispVal::List(lc) => Ok(lc),
+        _ => Err(LispError::TypeMismatch(String::from("list"), val)),
+    }
+}
 
 fn unpack_num(val: LispVal) -> Result<i32, LispError> {
     match val {
@@ -163,7 +195,7 @@ fn unpack_string(val: LispVal) -> Result<String, LispError> {
 }
 
 fn generic_binop<A>(
-    env: Environment,
+    env: &mut Environment,
     unpacker: fn(LispVal) -> Result<A, LispError>,
     op: fn(A, A) -> LispVal,
     args: Vec<LispVal>,
@@ -174,7 +206,7 @@ fn generic_binop<A>(
     let unpacked_args = args
         .into_iter()
         .map(Ok)
-        .map(|a| eval(env.clone(), a))
+        .map(|a| eval(env, a))
         .collect::<Result<Vec<_>, _>>()?
         .into_iter()
         .map(unpacker)
@@ -187,7 +219,7 @@ fn generic_binop<A>(
 }
 
 fn apply_zero<A>(
-    env: Environment,
+    env: &mut Environment,
     identity: A,
     pure_: fn(A) -> LispVal,
     unwraper: fn(LispVal) -> Result<A, LispError>,
@@ -200,14 +232,14 @@ where
     let mut left = identity;
     let mut iter = args.into_iter();
     while let Some(right) = iter.next() {
-        let right = unwraper(eval(env.clone(), Ok(right))?)?;
+        let right = unwraper(eval(env, Ok(right))?)?;
         left = op(left, right);
     }
     Ok(pure_(left))
 }
 
 fn apply_one<A>(
-    env: Environment,
+    env: &mut Environment,
     pure_: fn(A) -> LispVal,
     unpack: fn(LispVal) -> Result<A, LispError>,
     uniop: fn(A) -> A,
@@ -220,10 +252,10 @@ fn apply_one<A>(
         return Ok(pure_(uniop(unpack(args.into_iter().next().unwrap())?)));
     }
     let mut iter = args.into_iter();
-    let left = eval(env.clone(), Ok(iter.next().unwrap()))?;
+    let left = eval(env, Ok(iter.next().unwrap()))?;
     let mut left = unpack(left)?;
     while let Some(right) = iter.next() {
-        let right = unpack(eval(env.clone(), Ok(right))?)?;
+        let right = unpack(eval(env, Ok(right))?)?;
         left = op(left, right);
     }
     Ok(pure_(left))
@@ -232,12 +264,12 @@ fn apply_one<A>(
 // TODO(me) - Add tests for these branches
 // TODO(me) - Make a special form for car/cdr
 // TODO(me) - change car/cdr to first/rest
-fn eval_car(env: Environment, args: Vec<LispVal>) -> Result<LispVal, LispError> {
+fn eval_car(env: &mut Environment, args: Vec<LispVal>) -> Result<LispVal, LispError> {
     match &args[..] {
-        &[LispVal::List(ref lc)] => eval(env.clone(), Ok(lc[0].clone())),
-        &[LispVal::Vector(ref lc)] => eval(env.clone(), Ok(lc[0].clone())),
+        &[LispVal::List(ref lc)] => eval(env, Ok(lc[0].clone())),
+        &[LispVal::Vector(ref lc)] => eval(env, Ok(lc[0].clone())),
         &[LispVal::DottedList(DottedListContents { ref head, .. })] => {
-            eval(env.clone(), Ok(head[0].clone()))
+            eval(env, Ok(head[0].clone()))
         }
         &[ref val] => Err(LispError::TypeMismatch(String::from("List"), val.clone())),
         _ => Err(LispError::NumArgs(
@@ -248,7 +280,7 @@ fn eval_car(env: Environment, args: Vec<LispVal>) -> Result<LispVal, LispError> 
 }
 
 fn eval_primatives(
-    env: Environment,
+    env: &mut Environment,
     func: &str,
     args: Vec<LispVal>,
 ) -> Result<Option<LispVal>, LispError> {
@@ -375,37 +407,53 @@ fn eval_primatives(
     }
 }
 
-use lisp_val::SpecialForm::{If, Quote};
+use lisp_val::SpecialForm::{DefBang, If, LetStar, Quote};
 
-fn eval_list(env: Environment, lisp_val: ListContents) -> Result<LispVal, LispError> {
+fn eval_list(env: &mut Environment, lisp_val: ListContents) -> Result<LispVal, LispError> {
     match &lisp_val[..] {
         &[] => Ok(LispVal::from(vec![])),
+        &[LispVal::SpecialForm(LetStar), ref bindings, ref body] => {
+            // bindings must be a list or vec of even elements
+            let bindings = unpack_list_or_vec(bindings.clone())?;
+            // This could be a LispError instead of a panic.
+            assert!(bindings.len() % 2 == 0);
+            let mut let_star_env = bindings.chunks(2).fold(
+                Ok(Environment::shadowing(env.clone())),
+                |env, chunk| {
+                    let mut env = env?;
+                    let name = chunk[0].clone();
+                    let expr = Ok(chunk[1].clone());
+                    let name = unpack_atom(name)?;
+                    let evaled = eval(&mut env, expr)?;
+                    Ok(env.set(name, evaled))
+                },
+            )?;
+            eval(&mut let_star_env, Ok(body.clone()))
+        }
+        &[LispVal::SpecialForm(DefBang), LispVal::Atom(ref name), ref val] => {
+            let evaled = eval(env, Ok(val.clone()))?;
+            env.set_mut(name.clone(), evaled.clone());
+            Ok(evaled)
+        }
         &[LispVal::SpecialForm(If), ref pred, ref conseq, ref alt] => {
             // TODO(me) - Do I really need to clone pred, conseq, and alt?
-            if let LispVal::False = eval(env.clone(), Ok(pred.clone()))? {
-                eval(env.clone(), Ok(alt.clone()))
+            if let LispVal::False = eval(env, Ok(pred.clone()))? {
+                eval(env, Ok(alt.clone()))
             } else {
                 eval(env, Ok(conseq.clone()))
             }
         }
         &[LispVal::SpecialForm(Quote), ref val] => Ok(val.clone()),
-        &[LispVal::SpecialForm(_)] => Err(BadSpecialForm(
-            String::from("Unrecognized special form"),
-            LispVal::List(lisp_val.clone()),
-        )),
-        &[LispVal::Atom(ref s), ref _rest..] => {
+        &[LispVal::Atom(ref name), ref _rest..] => {
             let args = lisp_val.clone()
                 .into_iter()
             // We don't want the first since it's the function.
                 .skip(1)
                 .collect();
-            if let Some(result) = eval_primatives(env, &s, args)? {
+            if let Some(result) = eval_primatives(env, &name, args)? {
                 Ok(result)
             } else {
-                return Err(LispError::NotFunction(
-                    String::from("Not a function"),
-                    s.clone(),
-                ));
+                Err(LispError::NotFunction(name.clone()))
             }
         }
         _ => Err(BadSpecialForm(
@@ -415,26 +463,23 @@ fn eval_list(env: Environment, lisp_val: ListContents) -> Result<LispVal, LispEr
     }
 }
 
-fn eval_vector(env: Environment, lisp_val: VecContents) -> Result<LispVal, LispError> {
+fn eval_vector(env: &mut Environment, lisp_val: VecContents) -> Result<LispVal, LispError> {
     Ok(LispVal::Vector(
         lisp_val
             .into_iter()
             .map(Ok)
-            .map(|s| eval(env.clone(), s))
+            .map(|s| eval(env, s))
             .collect::<Result<Vec<_>, _>>()?,
     ))
 }
 
-fn eval_hash_map(env: Environment, lisp_val: MapContents) -> Result<LispVal, LispError> {
+fn eval_hash_map(env: &mut Environment, lisp_val: MapContents) -> Result<LispVal, LispError> {
     let initial: Result<HashMap<LispVal, LispVal>, LispError> = Ok(hashmap!());
     Ok(LispVal::Map(lisp_val.into_iter().fold(
         initial,
         |acc, (k, v)| {
             if let Ok(acc) = acc {
-                Ok(acc.insert(
-                    eval(env.clone(), Ok((*k).clone()))?,
-                    eval(env.clone(), Ok((*v).clone()))?,
-                ))
+                Ok(acc.insert(eval(env, Ok((*k).clone()))?, eval(env, Ok((*v).clone()))?))
             } else {
                 acc
             }
@@ -442,9 +487,19 @@ fn eval_hash_map(env: Environment, lisp_val: MapContents) -> Result<LispVal, Lis
     )?))
 }
 
-fn eval(env: Environment, lisp_val: Result<LispVal, LispError>) -> Result<LispVal, LispError> {
+pub fn eval(
+    env: &mut Environment,
+    lisp_val: Result<LispVal, LispError>,
+) -> Result<LispVal, LispError> {
     let lisp_val = match lisp_val? {
-        val @ LispVal::Atom(_) => val,
+        LispVal::Atom(ref name) => {
+            if let Some(val) = env.get(name) {
+                // TODO(me) - Is this how Arcs work?
+                val.deref().clone()
+            } else {
+                return Err(LispError::UnboundVar(name.clone()));
+            }
+        }
         val @ LispVal::DottedList(_) => val,
         val @ LispVal::String(_) => val,
         val @ LispVal::Number(_) => val,
@@ -465,5 +520,5 @@ fn eval(env: Environment, lisp_val: Result<LispVal, LispError>) -> Result<LispVa
 }
 
 pub fn eval_start(lisp_val: Result<LispVal, LispError>) -> Result<LispVal, LispError> {
-    eval(Environment::new(), lisp_val)
+    eval(&mut Environment::new(), lisp_val)
 }

@@ -90,6 +90,8 @@ named!(
                     "#f" => LispVal::False,
                     "quote" => LispVal::SpecialForm(SpecialForm::Quote),
                     "if" => LispVal::SpecialForm(SpecialForm::If),
+                    "def!" => LispVal::SpecialForm(SpecialForm::DefBang),
+                    "let*" => LispVal::SpecialForm(SpecialForm::LetStar),
                     _ => LispVal::Atom(s)
                 }
             })
@@ -690,6 +692,41 @@ mod tests {
             LispVal::List(vec![
                 LispVal::Atom(String::from("deref")),
                 LispVal::Atom(String::from("a")),
+            ])
+        )
+    }
+
+    #[test]
+    fn def_bang_parsing() {
+        let input = "(def! a 3)";
+        let actual = parse(input).unwrap();
+        assert_eq!(
+            actual,
+            LispVal::List(vec![
+                LispVal::SpecialForm(SpecialForm::DefBang),
+                LispVal::atom_from("a"),
+                LispVal::from(3),
+            ])
+        )
+    }
+
+    #[test]
+    fn let_star_parsing() {
+        let input = "(let* (q (+ 1 2)) q)";
+        let actual = parse(input).unwrap();
+        assert_eq!(
+            actual,
+            LispVal::List(vec![
+                LispVal::SpecialForm(SpecialForm::LetStar),
+                LispVal::from(vec![
+                    LispVal::atom_from("q"),
+                    LispVal::from(vec![
+                        LispVal::atom_from("+"),
+                        LispVal::from(1),
+                        LispVal::from(2),
+                    ]),
+                ]),
+                LispVal::atom_from("q"),
             ])
         )
     }

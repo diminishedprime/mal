@@ -1,11 +1,9 @@
 extern crate mal;
 
 fn main() {
+    let mut env = mal::lisp_val::Environment::new();
     loop {
-        mal::read::read("user> ")
-            .map(|s| print!("{}", s))
-            .expect("This should not happen");
-        // .map(mal::print::print)
-        // .expect("This should not happen");
+        let input = mal::read::read("user> ").unwrap();
+        print!("{}", input);
     }
 }
