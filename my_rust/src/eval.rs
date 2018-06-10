@@ -22,36 +22,52 @@ mod tests {
     use super::*;
     use parser;
 
-    #[test]
-    fn eval_string() {
-        let input = Ok(LispVal::String(String::from("my string")));
-        let expected = Ok(LispVal::String(String::from("my string")));
-        let output = eval_start(input);
-        assert_eq!(output, expected);
+    fn parse_eval(s: &str) -> Result<LispVal, LispError> {
+        eval_start(parser::parse(s))
     }
 
     #[test]
-    fn eval_number() {
-        let input = Ok(LispVal::Number(13));
-        let expected = Ok(LispVal::Number(13));
-        let output = eval_start(input);
-        assert_eq!(output, expected);
+    fn evals_to_self() {
+        let inputs = vec![r#""my string""#, "3", "#t", "#f"];
+        for input in inputs {
+            let parsed = parser::parse(input);
+            assert_eq!(eval_start(parsed.clone()), parsed.clone());
+        }
     }
 
     #[test]
-    fn eval_bool() {
-        let input = Ok(LispVal::True);
-        let expected = Ok(LispVal::True);
-        let output = eval_start(input);
-        assert_eq!(output, expected);
+    fn maths() {
+        let inputs = vec![
+            ("(+)", "0"),
+            ("(+ -3)", "-3"),
+            ("(+ 1 7)", "8"),
+            ("(+ 1 2 3)", "6"),
+            ("(*)", "1"),
+            ("(* -3)", "-3"),
+            ("(* 1 7)", "7"),
+            ("(* 1 2 3)", "6"),
+            ("(- 9)", "-9"),
+            ("(- 9 8)", "1"),
+            ("(- 9 8 7)", "-6"),
+            ("(/ -1)", "-1"),
+            ("(/ -6, 3)", "-2"),
+            ("(/ 24 2 2 1)", "6"),
+        ];
+        for (i, e) in inputs {
+            let input = parse_eval(i);
+            let expected = parse_eval(e);
+            assert_eq!(input, expected, "\nInput : {}\nOutput: {}\n", i, e);
+        }
     }
 
     #[test]
-    fn eval_quoted_list() {
-        let input = parser::parse("(quote 3)");
-        let output = eval_start(input);
-        let expected = Ok(LispVal::Number(3));
-        assert_eq!(output, expected);
+    fn lists() {
+        let inputs = vec![("(quote 3)", "3")];
+        for (input, expected) in inputs {
+            let input = parse_eval(input);
+            let expected = parse_eval(expected);
+            assert_eq!(input, expected);
+        }
     }
 
     #[test]
@@ -60,30 +76,6 @@ mod tests {
         if let Ok(_) = eval_start(Ok(expr)) {
             panic!("This should not eval successfully.")
         }
-    }
-
-    #[test]
-    fn addition_no_args() {
-        let expr = List(vec![easy_atom("+")]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(0)))
-    }
-
-    #[test]
-    fn addition_one_args() {
-        let expr = List(vec![easy_atom("+"), Number(-3)]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(-3)))
-    }
-
-    #[test]
-    fn addition_two_args() {
-        let expr = List(vec![easy_atom("+"), Number(-3), Number(3)]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(0)))
-    }
-
-    #[test]
-    fn addition_many_args() {
-        let expr = List(vec![easy_atom("+"), Number(-3), Number(3), Number(2)]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(2)))
     }
 
     #[test]
@@ -97,54 +89,6 @@ mod tests {
     }
 
     #[test]
-    fn subtraction_one_args() {
-        let expr = List(vec![easy_atom("-"), Number(-3)]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(3)))
-    }
-
-    #[test]
-    fn subtraction_two_args() {
-        let expr = List(vec![easy_atom("-"), Number(-3), Number(-3)]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(0)))
-    }
-
-    #[test]
-    fn subtraction_many_args() {
-        let expr = List(vec![easy_atom("-"), Number(100), Number(10), Number(40)]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(50)))
-    }
-
-    #[test]
-    fn multiplication_no_args() {
-        let expr = List(vec![easy_atom("*")]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(1)))
-    }
-
-    #[test]
-    fn multiplication_one_args() {
-        let expr = List(vec![easy_atom("*"), Number(-3)]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(-3)))
-    }
-
-    #[test]
-    fn multiplication_two_args() {
-        let expr = List(vec![easy_atom("*"), Number(-3), Number(2)]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(-6)))
-    }
-
-    #[test]
-    fn multiplication_many_args() {
-        let expr = List(vec![
-            easy_atom("*"),
-            Number(4),
-            Number(3),
-            Number(2),
-            Number(1),
-        ]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(24)))
-    }
-
-    #[test]
     fn division_no_args() {
         let expr = List(vec![easy_atom("/")]);
         if let Err(NumArgs(num, _)) = eval_start(Ok(expr)) {
@@ -153,36 +97,6 @@ mod tests {
             panic!("This should not eval successfully.")
         }
     }
-
-    #[test]
-    fn division_one_args() {
-        let expr = List(vec![easy_atom("/"), Number(-1)]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(-1)))
-    }
-
-    #[test]
-    fn division_two_args() {
-        let expr = List(vec![easy_atom("/"), Number(-6), Number(3)]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(-2)))
-    }
-
-    #[test]
-    fn division_many_args() {
-        let expr = List(vec![
-            easy_atom("/"),
-            Number(24),
-            Number(2),
-            Number(2),
-            Number(1),
-        ]);
-        assert_eq!(eval_start(Ok(expr)), Ok(Number(6)))
-    }
-
-    // #[test]
-    // fn equality_one_arg() {
-    //     let expr = List(vec!(easy_atom("="), Number(3)));
-    //     assert_eq!(eval_start(Ok(expr)), Ok(True));
-    // }
 
     #[test]
     fn equality_two_args_same() {
@@ -209,30 +123,6 @@ mod tests {
         let expr = parser::parse(r#"(if #f "hi" "there")"#);
         assert_eq!(eval_start(expr), Ok(easy_str("there")))
     }
-
-    // #[test]
-    // fn equality_many_args_same() {
-    //     let expr = List(vec!(easy_atom("="),
-    //                          List(vec!(easy_atom("+"),
-    //                                    Number(2), Number(3))),
-    //                          List(vec!(easy_atom("+"),
-    //                                    Number(3), Number(2))),
-    //                          Number(5)
-    //     ));
-    //     assert_eq!(eval_start(Ok(expr)), Ok(True));
-    // }
-
-    // #[test]
-    // fn equality_many_args_different() {
-    //     let expr = List(vec!(easy_atom("="),
-    //                          List(vec!(easy_atom("+"),
-    //                                    Number(2), Number(3))),
-    //                          List(vec!(easy_atom("+"),
-    //                                    Number(3), Number(2))),
-    //                          False
-    //     ));
-    //     assert_eq!(eval_start(Ok(expr)), Ok(False));
-    // }
 
     #[test]
     fn car_test() {
