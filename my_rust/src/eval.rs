@@ -4,9 +4,8 @@ use lisp_val::ExecyBoi;
 use lisp_val::LispError;
 use lisp_val::LispResult;
 use lisp_val::LispVal;
-use lisp_val::SpecialForm::{DefBang, Do, If, LetStar, Quote};
-use lisp_val::{AtomContents, ListContents, MapContents, VecContents};
-use std::ops::Deref;
+use lisp_val::SpecialForm::{DefBang, Do, FnStar, If, LetStar, Quote};
+use lisp_val::{AtomContents, Binding, ClosureData, ListContents, MapContents, VecContents};
 use std::sync::Arc;
 
 #[cfg(test)]
@@ -143,12 +142,35 @@ mod tests {
         assert_eq!(actual, LispVal::from(12));
     }
 
+    #[test]
+    fn fn_star_works() {
+        let input = "((fn* [] 4))";
+        let parsed = Ok(ExecyBoi::from(parser::parse(input).unwrap()));
+        let actual = eval_start(parsed).unwrap().val;
+        assert_eq!(actual, LispVal::from(4));
+    }
+
+    #[test]
+    fn fn_star_pass_a_function() {
+        let input = "( (fn* [f x] (f x)) (fn* [a] (+ 1 a)) 7)";
+        let parsed = Ok(ExecyBoi::from(parser::parse(input).unwrap()));
+        let actual = eval_start(parsed).unwrap().val;
+        assert_eq!(actual, LispVal::from(8));
+    }
+
 }
 
 fn unpack_atom(val: LispVal) -> Result<String, LispError> {
     match val {
         LispVal::Atom(a) => Ok(a),
-        _ => Err(LispError::TypeMismatch(String::from("list"), val)),
+        _ => Err(LispError::TypeMismatch(String::from("atom"), val)),
+    }
+}
+
+fn unpack_closure(val: LispVal) -> Result<ClosureData, LispError> {
+    match val {
+        LispVal::Closure(cd) => Ok(cd),
+        _ => Err(LispError::TypeMismatch(String::from("closure"), val)),
     }
 }
 
@@ -402,18 +424,114 @@ fn eval_quote(env: Arc<Environment>, lisp_val: ListContents) -> LispResult {
     })
 }
 
+fn eval_bound(
+    env: Arc<Environment>,
+    name: &str,
+    args: ListContents,
+) -> Result<Option<LispResult>, LispError> {
+    if let Some(bound) = env.get(&String::from(name)) {
+        let mut args = args.clone();
+        args.insert(0, (*bound).clone());
+        Ok(Some(eval(ExecyBoi {
+            env: Arc::clone(&env),
+            val: LispVal::List(args),
+        })))
+    } else {
+        Ok(None)
+    }
+}
+
 fn eval_function(env: Arc<Environment>, lisp_val: ListContents) -> LispResult {
     let name = unpack_atom(lisp_val[0].clone())?;
     let args = lisp_val.clone()
         .into_iter()
     // We don't want the first since it's the function.
         .skip(1)
-        .collect();
-    if let Some(result) = eval_primatives(env, &name, args)? {
+        .collect::<Vec<LispVal>>();
+    if let Some(result) = eval_primatives(Arc::clone(&env), &name, args.clone())? {
+        result
+    } else if let Some(result) = eval_bound(env, &name, args)? {
         result
     } else {
         Err(LispError::NotFunction(name.clone()))
     }
+}
+
+fn unpack_name_bindings(vals: Vec<LispVal>) -> Result<Vec<AtomContents>, LispError> {
+    vals.into_iter()
+        .map(|val| unpack_atom(val))
+        .collect::<Result<Vec<String>, LispError>>()
+}
+
+// (fn* (a b) (+ a b))
+fn eval_fn_star(env: Arc<Environment>, lisp_val: ListContents) -> LispResult {
+    let outer_env = Arc::clone(&env);
+    let bindings = unpack_list_or_vec(lisp_val[1].clone())?;
+    let name_bindings = unpack_name_bindings(bindings)?;
+    let body = Arc::new(lisp_val[2].clone());
+    Ok(ExecyBoi {
+        val: LispVal::Closure(ClosureData {
+            name_bindings,
+            body,
+            env: outer_env,
+        }),
+        env: env,
+    })
+}
+
+fn eval_closure(env: Arc<Environment>, lisp_val: ListContents) -> LispResult {
+    let mut iter = lisp_val.into_iter();
+    let first_entry = eval(ExecyBoi {
+        env: Arc::clone(&env),
+        val: iter.next().unwrap(),
+    })?;
+    let ClosureData {
+        name_bindings,
+        body,
+        env,
+    } = unpack_closure(first_entry.val)?;
+    let evaled_bois =
+        iter.map(|arg| {
+            eval(ExecyBoi {
+                env: Arc::clone(&env),
+                val: arg,
+            })
+        }).collect::<Result<Vec<ExecyBoi>, _>>()?;
+    let evaled_args = evaled_bois.into_iter().map(|s| s.val);
+    let bindings = name_bindings
+        .into_iter()
+        .zip(evaled_args)
+        .collect::<Vec<Binding>>();
+    let full_env = env.with_bindings(bindings);
+    eval(ExecyBoi {
+        env: Arc::new(full_env),
+        // Change val in execy boy to be arc...
+        val: (*body).clone(),
+    })
+}
+
+fn eval_closure_2(env: Arc<Environment>, lisp_val: ListContents) -> LispResult {
+    let mut iter = lisp_val.into_iter();
+    let first_entry = iter.next().unwrap();
+    // TODO(mjhamrick) - I'm pretty sure I need to combine the closure env with
+    // the current env?
+    let ClosureData {
+        name_bindings,
+        body,
+        env: _closure_env,
+    } = unpack_closure(first_entry)?;
+    let evaled_bois = iter;
+    let evaled_args = evaled_bois;
+    let bindings = name_bindings
+        .into_iter()
+        .zip(evaled_args)
+        .collect::<Vec<Binding>>();
+    let full_env = env.with_bindings(bindings);
+    eval(ExecyBoi {
+        env: Arc::new(full_env),
+        // Change val in execy boy to be arc...
+        val: (*body).clone(),
+    })
 }
 
 fn eval_list(env: Arc<Environment>, lisp_val: ListContents) -> LispResult {
@@ -430,7 +548,10 @@ fn eval_list(env: Arc<Environment>, lisp_val: ListContents) -> LispResult {
         LispVal::SpecialForm(DefBang) => eval_def_bang(env, lisp_val),
         LispVal::SpecialForm(If) => eval_if(env, lisp_val),
         LispVal::SpecialForm(Quote) => eval_quote(env, lisp_val),
+        LispVal::SpecialForm(FnStar) => eval_fn_star(env, lisp_val),
         LispVal::Atom(_) => eval_function(env, lisp_val),
+        LispVal::List(_) => eval_closure(env, lisp_val),
+        LispVal::Closure(_) => eval_closure_2(env, lisp_val),
         _ => Err(LispError::BadSpecialForm(
             String::from("Unrecognized special form"),
             LispVal::List(lisp_val),
@@ -493,11 +614,16 @@ fn eval_hash_map(env: Arc<Environment>, lisp_val: MapContents) -> LispResult {
 
 fn eval_atom(env: Arc<Environment>, name: AtomContents) -> LispResult {
     if let Some(val) = env.get(&name) {
-        // TODO(me) - Is this how Arcs work?
-        Ok(ExecyBoi {
-            val: val.deref().clone(),
-            env: env.clone(),
-        })
+        let val = (*val).clone();
+        if let LispVal::Atom(name) = val {
+            eval_atom(env, name)
+        } else {
+            // TODO(me) - Is this how Arcs work?
+            Ok(ExecyBoi {
+                val: val,
+                env: env.clone(),
+            })
+        }
     } else {
         return Err(LispError::UnboundVar(name.clone()));
     }
@@ -512,6 +638,7 @@ pub fn eval(lisp_val: ExecyBoi) -> LispResult {
         LispVal::True => Ok(lisp_val),
         LispVal::False => Ok(lisp_val),
         LispVal::Keyword(_) => Ok(lisp_val),
+        LispVal::Closure(_) => Ok(lisp_val),
         LispVal::Atom(ac) => eval_atom(lisp_val.env, ac),
         LispVal::List(lc) => eval_list(lisp_val.env, lc),
         LispVal::Vector(vc) => eval_vector(lisp_val.env, vc),

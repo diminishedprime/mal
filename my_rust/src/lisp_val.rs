@@ -72,18 +72,12 @@ pub struct DottedListContents {
     pub tail: Box<LispVal>,
 }
 
-impl Clone for Environment {
-    fn clone(&self) -> Environment {
-        Environment {
-            contents: self.contents.clone(),
-        }
-    }
-}
-
-#[derive(PartialEq, Debug)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Environment {
     contents: HashMap<AtomContents, LispVal>,
 }
+
+pub type Binding = (AtomContents, LispVal);
 
 impl Environment {
     pub fn shadowing(env: Environment) -> Environment {
@@ -95,6 +89,16 @@ impl Environment {
     pub fn new() -> Self {
         Environment {
             contents: hashmap!(),
+        }
+    }
+
+    pub fn with_bindings(&self, bindings: Vec<Binding>) -> Self {
+        Environment {
+            contents: bindings
+                .iter()
+                .fold(self.contents.clone(), |acc, (name, val)| {
+                    acc.insert(name, val)
+                }),
         }
     }
 
@@ -151,6 +155,15 @@ pub enum LispVal {
     List(ListContents),
     DottedList(DottedListContents),
     Vector(VecContents),
+
+    Closure(ClosureData),
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct ClosureData {
+    pub name_bindings: Vec<AtomContents>,
+    pub body: Arc<LispVal>,
+    pub env: Arc<Environment>,
 }
 
 impl LispVal {
@@ -213,7 +226,7 @@ impl Display for SpecialForm {
             &SpecialForm::DefBang => write!(f, "def!"),
             &SpecialForm::LetStar => write!(f, "let*"),
             &SpecialForm::Do => write!(f, "do"),
-            &SpecialForm::FnStar => write!(f, "fn*"),
+            &SpecialForm::FnStar => write!(f, "#"),
         }
     }
 }
@@ -221,6 +234,7 @@ impl Display for SpecialForm {
 impl Display for LispVal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            &LispVal::Closure(_) => write!(f, "#<function>"),
             &LispVal::Nil => write!(f, "nil"),
             &LispVal::SpecialForm(ref s) => write!(f, "{}", s),
             &LispVal::Map(ref m) => {
