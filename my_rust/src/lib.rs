@@ -16,24 +16,26 @@ pub mod read;
 use lisp_val::Environment;
 use lisp_val::ExecyBoi;
 use lisp_val::LispError;
+use std::sync::Arc;
 
-fn eval_loop(incoming_env: &Environment) -> Result<ExecyBoi, LispError> {
+fn eval_loop(incoming_env: Arc<Environment>) -> Result<ExecyBoi, LispError> {
     let read_val = read::read("user> ")?;
     let parsed = parser::parse(&read_val)?;
     let evaled = eval::eval(ExecyBoi {
         val: parsed,
-        env: incoming_env.clone(),
+        env: incoming_env,
     });
     print::print(&evaled);
     evaled
 }
 
 pub fn main() {
-    let mut env = lisp_val::Environment::new();
+    let mut env = Arc::new(lisp_val::Environment::new());
     loop {
-        match eval_loop(&env) {
-            Ok(execy_boi) => env = execy_boi.env,
-            Err(e) => println!("Ignoring these errors for now?\n{:?}", e),
-        };
+        if let Ok(execy_boi) = eval_loop(Arc::clone(&env)) {
+            env = execy_boi.env;
+        } else {
+            println!("Ignoring these errors for now");
+        }
     }
 }

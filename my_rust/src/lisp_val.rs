@@ -7,7 +7,16 @@ use std::sync::Arc;
 #[derive(PartialEq, Debug, Clone)]
 pub struct ExecyBoi {
     pub val: LispVal,
-    pub env: Environment,
+    pub env: Arc<Environment>,
+}
+
+impl From<LispVal> for ExecyBoi {
+    fn from(lv: LispVal) -> Self {
+        ExecyBoi {
+            val: lv,
+            env: Arc::new(Environment::new()),
+        }
+    }
 }
 
 impl Display for ExecyBoi {
@@ -66,10 +75,6 @@ pub struct DottedListContents {
 impl Clone for Environment {
     fn clone(&self) -> Environment {
         Environment {
-            previous: match *self.previous {
-                Some(ref p) => Box::new(Some(p.clone())),
-                None => Box::new(None),
-            },
             contents: self.contents.clone(),
         }
     }
@@ -77,48 +82,31 @@ impl Clone for Environment {
 
 #[derive(PartialEq, Debug)]
 pub struct Environment {
-    previous: Box<Option<Environment>>,
     contents: HashMap<AtomContents, LispVal>,
 }
 
 impl Environment {
     pub fn shadowing(env: Environment) -> Environment {
         Environment {
-            previous: Box::new(Some(env)),
-            contents: hashmap!(),
+            contents: env.contents,
         }
     }
 
     pub fn new() -> Self {
         Environment {
-            // I think this needs to be a Rc?
-            previous: Box::new(None),
             contents: hashmap!(),
         }
     }
 
-    pub fn set_mut(&mut self, key: AtomContents, val: LispVal) {
-        self.contents.insert_mut(key, val)
-    }
-
     pub fn set(&self, key: AtomContents, val: LispVal) -> Self {
         let contents = self.contents.insert(key, val);
-        Environment {
-            contents,
-            previous: self.previous.clone(),
-        }
+        Environment { contents }
     }
 
     // TODO(me) - I need to figure out how Arcs work better. I'm not really sure
     // why I have to do this as an arc (why can't I dereference the value?)
     pub fn get(&self, key: &AtomContents) -> Option<Arc<LispVal>> {
-        if let Some(val) = self.contents.get(key) {
-            Some(val)
-        } else if let Some(ref previous) = *self.previous {
-            previous.get(key)
-        } else {
-            None
-        }
+        self.contents.get(key)
     }
 }
 
@@ -148,6 +136,7 @@ impl SpecialForm {
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum LispVal {
+    Nil,
     True,
     False,
 
@@ -232,6 +221,7 @@ impl Display for SpecialForm {
 impl Display for LispVal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            &LispVal::Nil => write!(f, "nil"),
             &LispVal::SpecialForm(ref s) => write!(f, "{}", s),
             &LispVal::Map(ref m) => {
                 write!(f, "{{")?;

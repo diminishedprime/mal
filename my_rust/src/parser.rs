@@ -89,6 +89,7 @@ named!(
                     LispVal::SpecialForm(s)
                 } else {
                     match s.as_ref() {
+                        "nil" => LispVal::Nil,
                         "#t" => LispVal::True,
                         "#f" => LispVal::False,
                         _ => LispVal::Atom(s)
