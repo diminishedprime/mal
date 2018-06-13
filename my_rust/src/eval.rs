@@ -318,6 +318,27 @@ fn eval_primatives(
             |a, b| a / b,
             args,
         ))),
+        "=" => {
+            let mut iter = args.into_iter();
+            let left = iter.next().unwrap();
+            let left = eval(ExecyBoi {
+                val: left,
+                env: Arc::clone(&env),
+            })?.val;
+            let right = iter.next().unwrap();
+            let right = eval(ExecyBoi {
+                val: right,
+                env: Arc::clone(&env),
+            })?.val;
+            Ok(Some(Ok(ExecyBoi {
+                val: if left == right {
+                    LispVal::True
+                } else {
+                    LispVal::False
+                },
+                env: Arc::clone(&env),
+            })))
+        }
         _ => Ok(None),
     }
 }
