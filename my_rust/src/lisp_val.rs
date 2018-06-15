@@ -146,7 +146,7 @@ pub enum LispVal {
 
     Number(i32),
 
-    String(String),
+    LString(String),
     SpecialForm(SpecialForm),
     Atom(AtomContents),
     Keyword(String),
@@ -171,7 +171,7 @@ impl LispVal {
         LispVal::Atom(s.to_owned())
     }
     pub fn string_from(s: &str) -> LispVal {
-        LispVal::String(s.to_owned())
+        LispVal::LString(s.to_owned())
     }
     pub fn keyword_from(s: &str) -> LispVal {
         LispVal::Keyword(s.to_owned())
@@ -186,7 +186,7 @@ impl From<MapContents> for LispVal {
 
 impl From<String> for LispVal {
     fn from(s: String) -> Self {
-        LispVal::String(s)
+        LispVal::LString(s)
     }
 }
 
@@ -289,7 +289,7 @@ impl Display for LispVal {
             &LispVal::Number(n) => write!(f, "{}", n),
             &LispVal::True => write!(f, "#t"),
             &LispVal::False => write!(f, "#f"),
-            &LispVal::String(ref s) => write!(f, "\"{}\"", s),
+            &LispVal::LString(ref s) => write!(f, "\"{}\"", s),
         }
     }
 }

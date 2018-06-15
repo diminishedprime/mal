@@ -121,9 +121,9 @@ named!(parse_string<CompleteStr, LispVal>,
                )
                >> ({
                    if parts.to_string() == r#""""# {
-                       LispVal::String(String::from(""))
+                       LispVal::LString(String::from(""))
                    } else {
-                       LispVal::String(parts.to_string())
+                       LispVal::LString(parts.to_string())
                    }
                })
        )
@@ -355,7 +355,7 @@ mod tests {
         let input = "\"my string\"";
         let input = CompleteStr(&input);
         let (_, actual) = parse_string(input).unwrap();
-        assert_eq!(actual, LispVal::String(String::from("my string")))
+        assert_eq!(actual, LispVal::LString(String::from("my string")))
     }
 
     #[test]
@@ -365,7 +365,7 @@ mod tests {
         let (_, actual) = parse_string(input).unwrap();
         assert_eq!(
             actual,
-            LispVal::String(String::from(r#"my \"string\" is great"#))
+            LispVal::LString(String::from(r#"my \"string\" is great"#))
         )
     }
 
@@ -374,7 +374,7 @@ mod tests {
         let input = String::from(r#"  " \n \t \r "     "#);
         let input = CompleteStr(&input);
         let (_, actual) = parse_string(input).unwrap();
-        assert_eq!(actual, LispVal::String(String::from(r#" \n \t \r "#)))
+        assert_eq!(actual, LispVal::LString(String::from(r#" \n \t \r "#)))
     }
 
     #[test]
@@ -470,7 +470,7 @@ mod tests {
         let actual = parse(input).unwrap();
         assert_eq!(
             actual,
-            LispVal::List(vec![LispVal::String(String::from("hi there"))])
+            LispVal::List(vec![LispVal::LString(String::from("hi there"))])
         )
     }
 
@@ -481,8 +481,8 @@ mod tests {
         assert_eq!(
             actual,
             LispVal::List(vec![
-                LispVal::String(String::from("hi there")),
-                LispVal::String(String::from("johnny")),
+                LispVal::LString(String::from("hi there")),
+                LispVal::LString(String::from("johnny")),
             ])
         )
     }
@@ -494,9 +494,9 @@ mod tests {
         assert_eq!(
             actual,
             LispVal::List(vec![
-                LispVal::String(String::from("hi there")),
-                LispVal::String(String::from("I am strings")),
-                LispVal::String(String::from("hooray")),
+                LispVal::LString(String::from("hi there")),
+                LispVal::LString(String::from("I am strings")),
+                LispVal::LString(String::from("hooray")),
             ])
         )
     }
@@ -586,14 +586,14 @@ mod tests {
     fn parse_string_test() {
         let input = "\"hello there\"";
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::String(String::from("hello there")))
+        assert_eq!(actual, LispVal::LString(String::from("hello there")))
     }
 
     #[test]
     fn parse_empty_string_test() {
         let input = r#""""#;
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::String(String::from(r#""#)))
+        assert_eq!(actual, LispVal::LString(String::from(r#""#)))
     }
 
     #[test]
@@ -602,7 +602,7 @@ mod tests {
         let actual = parse(input).unwrap();
         assert_eq!(
             actual,
-            LispVal::String(String::from(r#"abc (with parens)"#))
+            LispVal::LString(String::from(r#"abc (with parens)"#))
         )
     }
 
@@ -649,7 +649,7 @@ mod tests {
         assert_eq!(
             actual,
             LispVal::Map(hashmap!{
-                LispVal::Keyword(String::from(":key")) => LispVal::String(String::from("value"))
+                LispVal::Keyword(String::from(":key")) => LispVal::LString(String::from("value"))
             })
         )
     }
@@ -661,7 +661,7 @@ mod tests {
         assert_eq!(
             actual,
             LispVal::Map(hashmap!{
-                LispVal::Number(1) => LispVal::String(String::from("abc"))
+                LispVal::Number(1) => LispVal::LString(String::from("abc"))
             })
         )
     }
@@ -673,7 +673,7 @@ mod tests {
         assert_eq!(
             actual,
             LispVal::Map(hashmap!{
-                LispVal::String(String::from("abc")) => LispVal::Number(1)
+                LispVal::LString(String::from("abc")) => LispVal::Number(1)
             })
         )
     }

@@ -654,7 +654,7 @@ pub fn eval(lisp_val: ExecyBoi) -> LispResult {
     match lisp_val.val {
         LispVal::Nil => Ok(lisp_val),
         LispVal::DottedList(_) => Ok(lisp_val),
-        LispVal::String(_) => Ok(lisp_val),
+        LispVal::LString(_) => Ok(lisp_val),
         LispVal::Number(_) => Ok(lisp_val),
         LispVal::True => Ok(lisp_val),
         LispVal::False => Ok(lisp_val),
