@@ -102,6 +102,12 @@ impl Environment {
         }
     }
 
+    pub fn with_binding(&self, binding: Binding) -> Self {
+        Environment {
+            contents: self.contents.insert(binding.0, binding.1),
+        }
+    }
+
     pub fn with_bindings(&self, bindings: Vec<Binding>) -> Self {
         Environment {
             contents: bindings

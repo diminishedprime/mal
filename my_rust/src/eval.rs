@@ -35,6 +35,16 @@ fn unpack_vec(l: LispVal) -> Result<ListContents, LispError> {
     }
 }
 
+fn unpack_list_or_vec(l: LispVal) -> Result<Vec<LispVal>, LispError> {
+    match l {
+        Vector(c) | List(c) => Ok(c),
+        _ => Err(LispError::TypeMismatch(
+            String::from("Vector or List"),
+            l.clone(),
+        )),
+    }
+}
+
 fn unpack_hash_map(l: LispVal) -> Result<MapContents, LispError> {
     match l {
         Map(mc) => Ok(mc),
@@ -95,10 +105,36 @@ fn eval_binary_num_op(
     Ok(val_with_env(LispVal::from(result), env))
 }
 
+fn eval_let_star(env: Arc<Environment>, bindings: LispVal, expression: LispVal) -> LispResult {
+    let bindings = unpack_list_or_vec(bindings)?;
+    // check bindings is even
+    let mut let_star_env = Arc::clone(&env);
+    bindings
+        .chunks(2)
+        .map(|chunk| {
+            let name = unpack_atom(&chunk[0])?;
+            let eb = eval(val_with_env(chunk[1].clone(), Arc::clone(&let_star_env)))?;
+            let_star_env = Arc::new(let_star_env.with_bindings(vec![(name, eb.val)]));
+            Ok(())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let val = eval(val_with_env(expression, let_star_env))?.val;
+    Ok(val_with_env(val, Arc::clone(&env)))
+}
+
+fn eval_def_bang(env: Arc<Environment>, name: LispVal, expression: LispVal) -> LispResult {
+    let name = unpack_atom(&name)?;
+    let val = eval(val_with_env(expression, Arc::clone(&env)))?.val;
+    let env = env.with_binding((name, val.clone()));
+    Ok(val_with_env(val, Arc::new(env)))
+}
+
 fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -> LispResult {
     match &list_contents[..] {
         [Atom(op), first, second] => match &op[..] {
             "+" | "-" | "*" | "/" => eval_binary_num_op(env, op, first.clone(), second.clone()),
+            "let*" => eval_let_star(env, first.clone(), second.clone()),
+            "def!" => eval_def_bang(env, first.clone(), second.clone()),
             _ => Err(LispError::NotImplemented(List(vec![
                 LispVal::atom_from(op),
                 first.clone(),
@@ -222,6 +258,8 @@ mod tests {
                 Vector(vec![Number(1), Number(2), Number(3)]),
             ),
             ("{ (+ 1 2) (+ 2 2) }", Map(hashmap!(Number(3) => Number(4)))),
+            ("(let* [a 2] (let* [b a] b))", Number(2)),
+            ("(let* [a (+ 1 2) a (+ a a)] a)", Number(6)),
         ];
         for (input, expected) in test_data.into_iter() {
             let input = parse(input);
@@ -248,6 +286,26 @@ mod tests {
             let input = parse_with_env(input, env);
             let actual = eval(input).unwrap_or_else(|e| panic!("{}", e)).val;
             assert_eq!(actual, expected);
+        }
+    }
+
+    #[test]
+    fn multi_step_tests_with_env() {
+        let test_data = vec![
+            (vec!["(def! a 3)", "a"], LispVal::from(3)),
+            (vec!["(def! a 3)", "(let* [a 4] a)"], LispVal::from(4)),
+            (vec!["(def! a 3)", "(let* [a 4] a)", "a"], LispVal::from(3)),
+        ];
+        for (inputs, expected) in test_data.into_iter() {
+            let mut env = Environment::new();
+            let mut last_val = None;
+            for input in inputs {
+                let input = parse_with_env(input, env);
+                let last = eval(input).unwrap_or_else(|e| panic!("{}", e));
+                env = (*last.env).clone();
+                last_val = Some(last.val);
+            }
+            assert_eq!(last_val.unwrap(), expected);
         }
     }
 
