@@ -149,9 +149,16 @@ fn eval_def_bang(env: Arc<Environment>, name: LispVal, expression: LispVal) -> L
     Ok(val_with_env(val, Arc::new(env)))
 }
 
+fn eval_make_list(env: Arc<Environment>, elements: Vec<LispVal>) -> LispResult {
+    Ok(val_with_env(
+        List(eval_vec_or_list_contents(Arc::clone(&env), elements)?),
+        env,
+    ))
+}
+
 fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -> LispResult {
     match &list_contents[..] {
-        [Atom(op), first, second] => match &op[..] {
+        [Atom(op), first, second] if op != "list" => match &op[..] {
             "+" | "-" | "*" | "/" => eval_binary_num_op(env, op, first.clone(), second.clone()),
             "=" => eval_binary_gen_op(env, op, first.clone(), second.clone()),
             "let*" => eval_let_star(env, first.clone(), second.clone()),
@@ -161,6 +168,14 @@ fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -
                 first.clone(),
                 second.clone(),
             ]))),
+        },
+        [Atom(op), rest..] => match &op[..] {
+            "list" => eval_make_list(env, rest.to_vec()),
+            _ => Err(LispError::NotImplemented(List({
+                let mut list = vec![LispVal::atom_from(op)];
+                list.append(&mut rest.to_vec());
+                list
+            }))),
         },
         a => Err(LispError::BadSpecialForm(List(a.to_vec()))),
     }
@@ -182,16 +197,23 @@ fn eval_list(execy_boi: ExecyBoi) -> LispResult {
     }
 }
 
-fn eval_vector(execy_boi: ExecyBoi) -> LispResult {
-    let env = execy_boi.env;
-    let vec_contents = unpack_vec(execy_boi.val)?;
-    let vec_contents = vec_contents
+fn eval_vec_or_list_contents(
+    env: Arc<Environment>,
+    contents: Vec<LispVal>,
+) -> Result<Vec<LispVal>, LispError> {
+    Ok(contents
         .into_iter()
         .map(|vc| eval(val_with_env(vc, Arc::clone(&env))))
         .collect::<Result<Vec<_>, _>>()?
         .into_iter()
         .map(|eb| eb.val)
-        .collect::<Vec<LispVal>>();
+        .collect::<Vec<LispVal>>())
+}
+
+fn eval_vector(execy_boi: ExecyBoi) -> LispResult {
+    let env = execy_boi.env;
+    let vec_contents = unpack_vec(execy_boi.val)?;
+    let vec_contents = eval_vec_or_list_contents(Arc::clone(&env), vec_contents)?;
     Ok(val_with_env(Vector(vec_contents), Arc::clone(&env)))
 }
 
@@ -284,6 +306,8 @@ mod tests {
             ("(= 1 2)", False),
             ("(= 1 1)", True),
             ("(= [(+ 1 2) 2] [3 (+ 1 1)] )", True),
+            ("(list 1 2)", List(vec![Number(1), Number(2)])),
+            ("(list 1 2 3)", List(vec![Number(1), Number(2), Number(3)])),
         ];
         for (input, expected) in test_data.into_iter() {
             let input = parse(input);
