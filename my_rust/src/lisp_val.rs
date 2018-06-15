@@ -297,7 +297,7 @@ mod tests {
     #[test]
     fn display_list() {
         let list = LispVal::from(vec![True, False]);
-        assert_eq!(String::from("(#t #f)"), format!("{}", list));
+        assert_eq!(String::from("(true false)"), format!("{}", list));
     }
 
     #[test]
@@ -309,13 +309,13 @@ mod tests {
     #[test]
     fn display_bool() {
         let bool = True;
-        assert_eq!(String::from("#t"), format!("{}", bool));
+        assert_eq!(String::from("true"), format!("{}", bool));
     }
 
     #[test]
     fn display_bool_false() {
         let bool = False;
-        assert_eq!(String::from("#f"), format!("{}", bool));
+        assert_eq!(String::from("false"), format!("{}", bool));
     }
 
     #[test]

@@ -66,24 +66,40 @@ fn eval_atom(execy_boi: ExecyBoi) -> LispResult {
     }
 }
 
-fn add(a: i32, b: i32) -> i32 {
-    a + b
+fn add(a: i32, b: i32) -> LispVal {
+    LispVal::from(a + b)
 }
 
-fn subtract(a: i32, b: i32) -> i32 {
-    a - b
+fn subtract(a: i32, b: i32) -> LispVal {
+    LispVal::from(a - b)
 }
 
-fn multiply(a: i32, b: i32) -> i32 {
-    a * b
+fn multiply(a: i32, b: i32) -> LispVal {
+    LispVal::from(a * b)
 }
 
-fn divide(a: i32, b: i32) -> i32 {
-    a / b
+fn divide(a: i32, b: i32) -> LispVal {
+    LispVal::from(a / b)
 }
 
 fn val_with_env(val: LispVal, env: Arc<Environment>) -> ExecyBoi {
     ExecyBoi { val, env }
+}
+
+fn lt(a: i32, b: i32) -> LispVal {
+    LispVal::from(a < b)
+}
+
+fn lte(a: i32, b: i32) -> LispVal {
+    LispVal::from(a <= b)
+}
+
+fn gt(a: i32, b: i32) -> LispVal {
+    LispVal::from(a > b)
+}
+
+fn gte(a: i32, b: i32) -> LispVal {
+    LispVal::from(a >= b)
 }
 
 fn eval_binary_num_op(
@@ -99,10 +115,14 @@ fn eval_binary_num_op(
         "-" => subtract,
         "*" => multiply,
         "/" => divide,
+        "<" => lt,
+        "<=" => lte,
+        ">" => gt,
+        ">=" => gte,
         _ => return Err(LispError::NotFunction(op.to_string())),
     };
     let result = op(unpack_num(&first)?, unpack_num(&second)?);
-    Ok(val_with_env(LispVal::from(result), env))
+    Ok(val_with_env(result, env))
 }
 
 fn eq(a: LispVal, b: LispVal) -> bool {
@@ -159,7 +179,9 @@ fn eval_make_list(env: Arc<Environment>, elements: Vec<LispVal>) -> LispResult {
 fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -> LispResult {
     match &list_contents[..] {
         [Atom(op), first, second] if op != "list" => match &op[..] {
-            "+" | "-" | "*" | "/" => eval_binary_num_op(env, op, first.clone(), second.clone()),
+            "+" | "-" | "*" | "/" | "<" | "<=" | ">" | ">=" => {
+                eval_binary_num_op(env, op, first.clone(), second.clone())
+            }
             "=" => eval_binary_gen_op(env, op, first.clone(), second.clone()),
             "let*" => eval_let_star(env, first.clone(), second.clone()),
             "def!" => eval_def_bang(env, first.clone(), second.clone()),
@@ -308,6 +330,16 @@ mod tests {
             ("(= [(+ 1 2) 2] [3 (+ 1 1)] )", True),
             ("(list 1 2)", List(vec![Number(1), Number(2)])),
             ("(list 1 2 3)", List(vec![Number(1), Number(2), Number(3)])),
+            ("(< 1 2)", True),
+            ("(< 2 1)", False),
+            ("(<= 1 1)", True),
+            ("(<= 1 2)", True),
+            ("(<= 2 1)", False),
+            ("(> 1 2)", False),
+            ("(> 2 1)", True),
+            ("(>= 1 1)", True),
+            ("(>= 1 2)", False),
+            ("(>= 2 1)", True),
         ];
         for (input, expected) in test_data.into_iter() {
             let input = parse(input);
