@@ -1,8 +1,7 @@
 use im::HashMap;
-use lisp_val::DottedListContents;
 use lisp_val::LispError;
 use lisp_val::LispVal;
-use lisp_val::SpecialForm;
+use lisp_val::LispVal::Atom;
 use nom;
 use nom::types::CompleteStr;
 
@@ -39,14 +38,11 @@ named!(
     parse_keyword<CompleteStr, LispVal>,
     do_parse!(
         spaces
-            >> first: one_of!(":")
+            >> one_of!(":")
             >> rest: many1!(alt!(letter | symbol | digit))
             >> ({
-                let mut s = String::new();
                 let rest = rest.iter().collect::<String>();
-                s.push(first);
-                s.push_str(&rest);
-                LispVal::Keyword(s)
+                LispVal::Keyword(rest)
             })
     )
 );
@@ -85,16 +81,13 @@ named!(
                         // error code???
                         return Err(nom::Err::Error(nom::Context::Code(CompleteStr("temp"), nom::ErrorKind::Custom(3))));
                     }
-                if let Some(s) = SpecialForm::from_str(&s) {
-                    LispVal::SpecialForm(s)
-                } else {
-                    match s.as_ref() {
-                        "nil" => LispVal::Nil,
-                        "#t" => LispVal::True,
-                        "#f" => LispVal::False,
-                        _ => LispVal::Atom(s)
-                    }
+                match s.as_ref() {
+                    "nil" => LispVal::Nil,
+                    "true" => LispVal::True,
+                    "false" => LispVal::False,
+                    _ => LispVal::Atom(s)
                 }
+
             })
     )
 );
@@ -203,26 +196,6 @@ named!(
 );
 
 named!(
-    parse_dotted_list<CompleteStr, LispVal>,
-    do_parse!(
-        head: separated_list!(spaces, parse_expr)
-            >> spaces
-            >> tail: do_parse!(
-                tag!(".")
-                    >> spaces
-                    >> val: parse_expr
-                    >> spaces
-                    >> (val)
-            )
-            >> (LispVal::DottedList(
-                DottedListContents {
-                    head,
-                    tail: Box::new(tail),
-                }))
-    )
-);
-
-named!(
     parse_quasiquoted<CompleteStr, LispVal>,
     do_parse!(
         spaces
@@ -259,7 +232,7 @@ named!(
             >> tag!("'")
             >> x: parse_expr
             >> (LispVal::List(vec!(
-                LispVal::SpecialForm(SpecialForm::Quote), x)))
+                Atom(String::from("quote")), x)))
     )
 );
 
@@ -268,10 +241,7 @@ named!(
     do_parse!(
         spaces
             >> tag!("(")
-            >> x: alt!(
-                parse_dotted_list
-                    | parse_list
-            )
+            >> x: parse_list
             >> spaces
             >> tag!(")")
             >> (x)
@@ -338,14 +308,14 @@ mod tests {
 
     #[test]
     fn atom_parsing_true() {
-        let input = CompleteStr("#t");
+        let input = CompleteStr("true");
         let (_, actual) = parse_atom(input).unwrap();
         assert_eq!(actual, LispVal::True)
     }
 
     #[test]
     fn atom_parsing_false() {
-        let input = CompleteStr("#f");
+        let input = CompleteStr("false");
         let (_, actual) = parse_atom(input).unwrap();
         assert_eq!(actual, LispVal::False)
     }
@@ -400,54 +370,24 @@ mod tests {
     }
 
     #[test]
-    fn dotted_list_parsing() {
-        use self::LispVal::Number;
-        use lisp_val::DottedListContents;
-
-        let input = CompleteStr("3 4 . 5");
-        let (_, actual) = parse_dotted_list(input).unwrap();
-        assert_eq!(
-            actual,
-            LispVal::DottedList(DottedListContents {
-                head: vec![Number(3), Number(4)],
-                tail: Box::new(Number(5)),
-            })
-        )
-    }
-
-    #[test]
     fn quoted_parsing() {
         let input = CompleteStr("'atom");
         let (_, actual) = parse_quoted(input).unwrap();
         assert_eq!(
             actual,
             LispVal::List(vec![
-                LispVal::SpecialForm(SpecialForm::Quote),
+                Atom(String::from("quote")),
                 LispVal::Atom(String::from("atom")),
             ])
         )
     }
 
     #[test]
-    fn parse_lists_test_not_dotted() {
+    fn parse_lists_2() {
         use self::LispVal::Number;
         let input = CompleteStr("(1 2 3)");
         let (_, actual) = parse_lists(input).unwrap();
         assert_eq!(actual, LispVal::List(vec![Number(1), Number(2), Number(3)]))
-    }
-    #[test]
-    fn parse_lists_test_dotted() {
-        use self::LispVal::Number;
-        use lisp_val::DottedListContents;
-        let input = CompleteStr("(1 2 3 . 4)");
-        let (_, actual) = parse_lists(input).unwrap();
-        assert_eq!(
-            actual,
-            LispVal::DottedList(DottedListContents {
-                head: vec![Number(1), Number(2), Number(3)],
-                tail: Box::new(Number(4)),
-            })
-        )
     }
 
     #[test]
@@ -518,29 +458,13 @@ mod tests {
     }
 
     #[test]
-    fn parse_dotted_list_test() {
-        use self::LispVal::Number;
-        use lisp_val::DottedListContents;
-
-        let input = "(1 2 3 . 4)";
-        let actual = parse(input).unwrap();
-        assert_eq!(
-            actual,
-            LispVal::DottedList(DottedListContents {
-                head: vec![Number(1), Number(2), Number(3)],
-                tail: Box::new(Number(4)),
-            })
-        )
-    }
-
-    #[test]
     fn parse_quoted_test() {
         let input = "'hello";
         let actual = parse(input).unwrap();
         assert_eq!(
             actual,
             LispVal::List(vec![
-                LispVal::SpecialForm(SpecialForm::Quote),
+                Atom(String::from("quote")),
                 LispVal::Atom(String::from("hello")),
             ])
         )
@@ -573,13 +497,6 @@ mod tests {
                 ]),
             ])
         );
-    }
-
-    #[test]
-    fn parse_atom_test() {
-        let input = "#t";
-        let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::True)
     }
 
     #[test]
@@ -624,7 +541,7 @@ mod tests {
     fn parse_keyword_test() {
         let input = " :123";
         let actual = parse(input).unwrap();
-        assert_eq!(actual, LispVal::Keyword(String::from(":123")))
+        assert_eq!(actual, LispVal::Keyword(String::from("123")))
     }
 
     #[test]
@@ -649,7 +566,7 @@ mod tests {
         assert_eq!(
             actual,
             LispVal::Map(hashmap!{
-                LispVal::Keyword(String::from(":key")) => LispVal::LString(String::from("value"))
+                LispVal::Keyword(String::from("key")) => LispVal::LString(String::from("value"))
             })
         )
     }
@@ -704,7 +621,7 @@ mod tests {
         assert_eq!(
             actual,
             LispVal::List(vec![
-                LispVal::SpecialForm(SpecialForm::DefBang),
+                Atom(String::from("def!")),
                 LispVal::atom_from("a"),
                 LispVal::from(3),
             ])
@@ -718,7 +635,7 @@ mod tests {
         assert_eq!(
             actual,
             LispVal::List(vec![
-                LispVal::SpecialForm(SpecialForm::LetStar),
+                Atom(String::from("let*")),
                 LispVal::from(vec![
                     LispVal::atom_from("q"),
                     LispVal::from(vec![
@@ -739,9 +656,9 @@ mod tests {
         assert_eq!(
             actual,
             LispVal::from(vec![
-                LispVal::SpecialForm(SpecialForm::Do),
+                Atom(String::from("do")),
                 LispVal::from(vec![
-                    LispVal::SpecialForm(SpecialForm::DefBang),
+                    Atom(String::from("def!")),
                     LispVal::atom_from("a"),
                     LispVal::from(5),
                 ]),

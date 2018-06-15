@@ -10,6 +10,12 @@ pub struct ExecyBoi {
     pub env: Arc<Environment>,
 }
 
+impl ExecyBoi {
+    pub fn with_value(self, val: LispVal) -> Self {
+        ExecyBoi { val, ..self }
+    }
+}
+
 impl From<LispVal> for ExecyBoi {
     fn from(lv: LispVal) -> Self {
         ExecyBoi {
@@ -31,11 +37,12 @@ pub type LispResult = Result<ExecyBoi, LispError>;
 pub enum LispError {
     NumArgs(i32, LispVal),
     TypeMismatch(String, LispVal),
-    BadSpecialForm(String, LispVal),
+    BadSpecialForm(LispVal),
     NotFunction(String),
     UnboundVar(String),
     Default(String),
     Parse(String),
+    NotImplemented(LispVal),
 }
 
 impl Display for LispError {
@@ -44,7 +51,7 @@ impl Display for LispError {
             &LispError::TypeMismatch(ref expected, ref found) => {
                 write!(f, "Invalid type: expected {}, found {}", expected, found)
             }
-            &LispError::BadSpecialForm(ref message, ref form) => write!(f, "{}: {}", message, form),
+            &LispError::BadSpecialForm(ref form) => write!(f, "Bad special form:\n{}", form),
             &LispError::NotFunction(ref func) => write!(f, "{} is not a bound function.", func),
             &LispError::NumArgs(ref expected, ref found) => {
                 write!(f, "Expected: {} args; found values {}", expected, found)
@@ -54,6 +61,9 @@ impl Display for LispError {
             }
             &LispError::Default(ref a) => write!(f, "Default Error:\n{}", a),
             &LispError::Parse(ref a) => write!(f, "Parse Error:\n{}", a),
+            &LispError::NotImplemented(ref a) => {
+                write!(f, "Not implemented, expression was:\n{}\n", a)
+            }
         }
     }
 }
@@ -115,30 +125,6 @@ impl Environment {
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub enum SpecialForm {
-    If,
-    Quote,
-    DefBang,
-    LetStar,
-    Do,
-    FnStar,
-}
-
-impl SpecialForm {
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.as_ref() {
-            "if" => Some(SpecialForm::If),
-            "let*" => Some(SpecialForm::LetStar),
-            "do" => Some(SpecialForm::Do),
-            "def!" => Some(SpecialForm::DefBang),
-            "quote" => Some(SpecialForm::Quote),
-            "fn*" => Some(SpecialForm::FnStar),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum LispVal {
     Nil,
     True,
@@ -147,13 +133,11 @@ pub enum LispVal {
     Number(i32),
 
     LString(String),
-    SpecialForm(SpecialForm),
     Atom(AtomContents),
     Keyword(String),
 
     Map(MapContents),
     List(ListContents),
-    DottedList(DottedListContents),
     Vector(VecContents),
 
     Closure(ClosureData),
@@ -212,31 +196,11 @@ impl From<ListContents> for LispVal {
     }
 }
 
-impl From<DottedListContents> for LispVal {
-    fn from(lc: DottedListContents) -> Self {
-        LispVal::DottedList(lc)
-    }
-}
-
-impl Display for SpecialForm {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &SpecialForm::If => write!(f, "if"),
-            &SpecialForm::Quote => write!(f, "quote"),
-            &SpecialForm::DefBang => write!(f, "def!"),
-            &SpecialForm::LetStar => write!(f, "let*"),
-            &SpecialForm::Do => write!(f, "do"),
-            &SpecialForm::FnStar => write!(f, "#"),
-        }
-    }
-}
-
 impl Display for LispVal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &LispVal::Closure(_) => write!(f, "#<function>"),
             &LispVal::Nil => write!(f, "nil"),
-            &LispVal::SpecialForm(ref s) => write!(f, "{}", s),
             &LispVal::Map(ref m) => {
                 write!(f, "{{")?;
                 // TODO(me) - This seems overly complicated. Is there a way I
@@ -261,7 +225,7 @@ impl Display for LispVal {
                 write!(f, "{}", parts)?;
                 write!(f, "]")
             }
-            &LispVal::Keyword(ref s) => write!(f, "{}", s),
+            &LispVal::Keyword(ref s) => write!(f, ":{}", s),
             &LispVal::Atom(ref a) => write!(f, "{}", a),
             &LispVal::List(ref l) => {
                 write!(f, "(")?;
@@ -275,17 +239,6 @@ impl Display for LispVal {
                 write!(f, "{}", parts)?;
                 write!(f, ")")
             }
-            &LispVal::DottedList(DottedListContents { ref head, ref tail }) => {
-                write!(f, "(")?;
-                let parts = head
-                    .iter()
-                    .map(|part| format!("{}", part))
-                    .collect::<Vec<String>>()
-                    .join(" ");
-                write!(f, "{}", parts)?;
-                write!(f, " . {}", tail)?;
-                write!(f, ")")
-            }
             &LispVal::Number(n) => write!(f, "{}", n),
             &LispVal::True => write!(f, "#t"),
             &LispVal::False => write!(f, "#f"),
@@ -296,7 +249,6 @@ impl Display for LispVal {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use lisp_val::LispVal;
     use lisp_val::LispVal::False;
     use lisp_val::LispVal::True;
@@ -311,15 +263,6 @@ mod tests {
     fn display_list() {
         let list = LispVal::from(vec![True, False]);
         assert_eq!(String::from("(#t #f)"), format!("{}", list));
-    }
-
-    #[test]
-    fn display_dottedlist() {
-        let dottedlist = LispVal::from(DottedListContents {
-            head: vec![True, False],
-            tail: Box::new(True),
-        });
-        assert_eq!(String::from("(#t #f . #t)"), format!("{}", dottedlist));
     }
 
     #[test]
@@ -345,24 +288,4 @@ mod tests {
         let string = LispVal::string_from("hello");
         assert_eq!(String::from("\"hello\""), format!("{}", string));
     }
-
-    #[test]
-    fn display_list_nested() {
-        let one = LispVal::from(1);
-        let two = LispVal::string_from("two");
-        let three_and_four = LispVal::from(DottedListContents {
-            head: vec![LispVal::from(3)],
-            tail: Box::new(LispVal::from(4)),
-        });
-
-        let list = LispVal::from(vec![one, two, three_and_four]);
-        assert_eq!(String::from("(1 \"two\" (3 . 4))"), format!("{}", list));
-    }
-
-    // #[test]
-    // fn display_type_mismatch() {
-    //     let err = TypeMismatch(String::from("thing"), LispVal::from(3));
-    //     let actual = format!("{}", err);
-    //     assert_eq!(actual, String::from(""));
-    // }
 }
