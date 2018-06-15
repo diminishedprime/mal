@@ -105,6 +105,26 @@ fn eval_binary_num_op(
     Ok(val_with_env(LispVal::from(result), env))
 }
 
+fn eq(a: LispVal, b: LispVal) -> bool {
+    a == b
+}
+
+fn eval_binary_gen_op(
+    env: Arc<Environment>,
+    op: &str,
+    first: LispVal,
+    second: LispVal,
+) -> LispResult {
+    let first = eval(val_with_env(first, Arc::clone(&env)))?.val;
+    let second = eval(val_with_env(second, Arc::clone(&env)))?.val;
+    let op = match &op[..] {
+        "=" => eq,
+        _ => return Err(LispError::NotFunction(op.to_string())),
+    };
+    let result = op(first, second);
+    Ok(val_with_env(LispVal::from(result), env))
+}
+
 fn eval_let_star(env: Arc<Environment>, bindings: LispVal, expression: LispVal) -> LispResult {
     let bindings = unpack_list_or_vec(bindings)?;
     // check bindings is even
@@ -133,6 +153,7 @@ fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -
     match &list_contents[..] {
         [Atom(op), first, second] => match &op[..] {
             "+" | "-" | "*" | "/" => eval_binary_num_op(env, op, first.clone(), second.clone()),
+            "=" => eval_binary_gen_op(env, op, first.clone(), second.clone()),
             "let*" => eval_let_star(env, first.clone(), second.clone()),
             "def!" => eval_def_bang(env, first.clone(), second.clone()),
             _ => Err(LispError::NotImplemented(List(vec![
@@ -260,6 +281,9 @@ mod tests {
             ("{ (+ 1 2) (+ 2 2) }", Map(hashmap!(Number(3) => Number(4)))),
             ("(let* [a 2] (let* [b a] b))", Number(2)),
             ("(let* [a (+ 1 2) a (+ a a)] a)", Number(6)),
+            ("(= 1 2)", False),
+            ("(= 1 1)", True),
+            ("(= [(+ 1 2) 2] [3 (+ 1 1)] )", True),
         ];
         for (input, expected) in test_data.into_iter() {
             let input = parse(input);
