@@ -130,7 +130,7 @@ impl Environment {
     }
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq)]
 pub enum LispVal {
     Nil,
     True,
@@ -147,6 +147,35 @@ pub enum LispVal {
     Vector(VecContents),
 
     Closure(ClosureData),
+}
+
+use self::LispVal::{Atom, Closure, False, Keyword, LString, List, Map, Nil, Number, True, Vector};
+
+impl PartialEq for LispVal {
+    fn eq(&self, other: &LispVal) -> bool {
+        match (self, other) {
+            (Nil, Nil) => true,
+            (True, True) => true,
+            (False, False) => true,
+
+            (Number(n), Number(n2)) => n == n2,
+
+            (LString(s), LString(s2)) => s == s2,
+            (Atom(s), Atom(s2)) => s == s2,
+            (Keyword(s), Keyword(s2)) => s == s2,
+
+            (Map(m), Map(m2)) => m == m2,
+
+            (List(c), List(c2)) => c == c2,
+            (List(c), Vector(c2)) => c == c2,
+            (Vector(c), Vector(c2)) => c == c2,
+            (Vector(c), List(c2)) => c == c2,
+
+            (Closure(c), Closure(c2)) => c == c2,
+
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -246,8 +275,8 @@ impl Display for LispVal {
                 write!(f, ")")
             }
             &LispVal::Number(n) => write!(f, "{}", n),
-            &LispVal::True => write!(f, "#t"),
-            &LispVal::False => write!(f, "#f"),
+            &LispVal::True => write!(f, "true"),
+            &LispVal::False => write!(f, "false"),
             &LispVal::LString(ref s) => write!(f, "\"{}\"", s),
         }
     }
