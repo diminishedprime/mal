@@ -4,6 +4,14 @@
 #[macro_use]
 extern crate nom;
 
+extern crate regex;
+
+macro_rules! regex {
+    ($e:expr) => {
+        ::regex::Regex::new($e).unwrap()
+    };
+}
+
 #[macro_use]
 extern crate im;
 
@@ -32,10 +40,10 @@ fn eval_loop(incoming_env: Arc<Environment>) -> Result<ExecyBoi, LispError> {
 pub fn main() {
     let mut env = Arc::new(lisp_val::Environment::prelude().unwrap());
     loop {
-        if let Ok(execy_boi) = eval_loop(Arc::clone(&env)) {
-            env = execy_boi.env;
-        } else {
-            println!("Ignoring these errors for now");
+        let evaled = eval_loop(Arc::clone(&env));
+        match evaled {
+            Ok(execy_boi) => env = execy_boi.env,
+            Err(e) => println!("Error:\n{}", e),
         }
     }
 }

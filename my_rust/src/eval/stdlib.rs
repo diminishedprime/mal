@@ -1,9 +1,7 @@
+use lisp_val;
 use lisp_val::LispError;
 use lisp_val::LispVal;
-use lisp_val::LispVal::{
-    Atom, Closure, False, Keyword, LString, List, Map, Nil, Number, True, Vector,
-};
-use std::slice::SliceConcatExt;
+use lisp_val::LispVal::{LString, List, Nil, Number, Vector};
 
 type ValErr = Result<LispVal, LispError>;
 
@@ -97,100 +95,21 @@ pub fn count(arg: LispVal) -> ValErr {
 }
 
 pub fn pr_str(args: Vec<LispVal>) -> ValErr {
-    let s = args
-        .into_iter()
-        .map(|a| pr_str_impl(a, true))
-        .collect::<Vec<_>>()
-        .join(" ");
+    let s = lisp_val::print_list(&args, true, "", "", " ");
     Ok(LString(s))
-}
-
-pub fn println(args: Vec<LispVal>) -> ValErr {
-    let s = args
-        .into_iter()
-        .map(|a| pr_str_impl(a, true))
-        .collect::<Vec<_>>()
-        .join(" ");
-    println!("{}", s);
-    Ok(Nil)
-}
-
-pub fn prn(args: Vec<LispVal>) -> ValErr {
-    let s = args
-        .into_iter()
-        .map(|a| pr_str_impl(a, true))
-        .collect::<Vec<_>>()
-        .join(" ");
-    print!("{}", s);
-    Ok(Nil)
 }
 
 pub fn str(args: Vec<LispVal>) -> ValErr {
-    let s = args
-        .into_iter()
-        .map(|a| pr_str_impl(a, false))
-        .collect::<Vec<_>>()
-        .join("");
+    let s = lisp_val::print_list(&args, false, "", "", "");
     Ok(LString(s))
 }
 
-fn escape_str(s: &str) -> String {
-    let mut escaped = String::new();
-    escaped.push_str("\"");
-    for c in s.chars() {
-        match c {
-            '"' => escaped.push_str("\\\""),
-            '\\' => escaped.push_str("\\\\"),
-            '\n' => escaped.push_str("\\n"),
-            '\r' => escaped.push_str("\\r"),
-            '\t' => escaped.push_str("\\t"),
-            _ => escaped.push(c),
-        }
-    }
-    escaped.push_str("\"");
-    escaped
+pub fn prn(args: Vec<LispVal>) -> ValErr {
+    println!("{}", lisp_val::print_list(&args, true, "", "", " "));
+    Ok(Nil)
 }
 
-fn pr_str_impl(arg: LispVal, print_readably: bool) -> String {
-    match arg {
-        LString(s) => format!("{}", {
-            if print_readably {
-                escape_str(&s)
-            } else {
-                s
-            }
-        }),
-        Nil => format!("nil"),
-        True => format!("true"),
-        False => format!("false"),
-        Number(n) => format!("{}", n),
-        Atom(n) => format!("{}", n),
-        Keyword(k) => format!("{}", k),
-        Map(m) => format!(
-            "{{{}}}",
-            m.into_iter()
-                .map(|(k, v)| format!(
-                    "{} {}",
-                    pr_str_impl((*k).clone(), print_readably),
-                    pr_str_impl((*v).clone(), print_readably)
-                ))
-                .collect::<Vec<String>>()
-                .join(" ")
-        ),
-        List(l) => format!(
-            "({})",
-            l.into_iter()
-                .map(|i| pr_str_impl(i, print_readably))
-                .collect::<Vec<String>>()
-                .join(" ")
-        ),
-        Vector(v) => format!(
-            "[{}]",
-            v.into_iter()
-                .map(|i| pr_str_impl(i, print_readably))
-                .collect::<Vec<String>>()
-                .join(" ")
-        ),
-        Closure(_) => format!("fn"),
-    }
+pub fn println(args: Vec<LispVal>) -> ValErr {
+    println!("{}", lisp_val::print_list(&args, false, "", "", " "));
+    Ok(Nil)
 }

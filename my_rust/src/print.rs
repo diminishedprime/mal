@@ -1,12 +1,8 @@
-use std::fmt::Display;
+use lisp_val::LispResult;
 
-pub fn print<T, U>(result: &Result<T, U>) -> ()
-where
-    T: Display,
-    U: Display,
-{
+pub fn print(result: &LispResult) -> () {
     match result {
-        Ok(a) => println!("{}", a),
+        Ok(e) => println!("{}", e.val.pr_str(true)),
         Err(e) => eprintln!("{}", e),
     }
 }

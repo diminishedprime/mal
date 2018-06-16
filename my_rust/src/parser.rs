@@ -4,6 +4,7 @@ use lisp_val::LispVal;
 use lisp_val::LispVal::Atom;
 use nom;
 use nom::types::CompleteStr;
+use regex::Captures;
 
 named!(spaces<CompleteStr, ()>, do_parse!(
     many0!(one_of!(" ,")) >> ())
@@ -92,6 +93,26 @@ named!(
     )
 );
 
+pub fn unescape_str(s: &str) -> String {
+    let re = regex!(r#"\\(.)"#);
+    re.replace_all(&s, |caps: &Captures| {
+        format!(
+            "{}",
+            if &caps[1] == "n" {
+                "\n"
+            } else if &caps[1] == "t" {
+                "\t"
+            } else if &caps[1] == "r" {
+                "\r"
+            } else if &caps[1] == "\\" {
+                "\\"
+            } else {
+                &caps[1]
+            }
+        )
+    })
+}
+
 named!(parse_string<CompleteStr, LispVal>,
        do_parse!(
            spaces
@@ -106,7 +127,7 @@ named!(parse_string<CompleteStr, LispVal>,
                                    )
                                ),
                                '\\',
-                               one_of!("\"\\ntr")
+                               one_of!("\"ntr\\")
                            )
                                ,
                            tag!("\"")
@@ -116,7 +137,7 @@ named!(parse_string<CompleteStr, LispVal>,
                    if parts.to_string() == r#""""# {
                        LispVal::LString(String::from(""))
                    } else {
-                       LispVal::LString(parts.to_string())
+                       LispVal::LString(unescape_str(&parts.to_string()[..]))
                    }
                })
        )
@@ -329,13 +350,23 @@ mod tests {
     }
 
     #[test]
+    fn string_parsing_2() {
+        let input = r#""\n""#;
+        let input = CompleteStr(&input);
+        let (_, actual) = parse_string(input).unwrap();
+        let mut expected_str = String::new();
+        expected_str.push('\n');
+        assert_eq!(actual, LispVal::from(expected_str))
+    }
+
+    #[test]
     fn string_parsing_with_escaped_quotes() {
         let input = String::from(r#""my \"string\" is great""#);
         let input = CompleteStr(&input);
         let (_, actual) = parse_string(input).unwrap();
         assert_eq!(
             actual,
-            LispVal::LString(String::from(r#"my \"string\" is great"#))
+            LispVal::LString(String::from("my \"string\" is great"))
         )
     }
 
@@ -344,7 +375,7 @@ mod tests {
         let input = String::from(r#"  " \n \t \r "     "#);
         let input = CompleteStr(&input);
         let (_, actual) = parse_string(input).unwrap();
-        assert_eq!(actual, LispVal::LString(String::from(r#" \n \t \r "#)))
+        assert_eq!(actual, LispVal::LString(String::from(" \n \t \r ")))
     }
 
     #[test]

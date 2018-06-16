@@ -223,6 +223,77 @@ pub enum LispVal {
     Closure(ClosureData),
 }
 
+fn escape_str(s: &str) -> String {
+    let mut escaped = String::new();
+    escaped.push_str("\"");
+    for c in s.chars() {
+        match c {
+            '"' => escaped.push_str("\\\""),
+            '\\' => escaped.push_str("\\\\"),
+            '\x08' => escaped.push_str("\\b"),
+            '\x0c' => escaped.push_str("\\f"),
+            '\n' => escaped.push_str("\\n"),
+            '\r' => escaped.push_str("\\r"),
+            '\t' => escaped.push_str("\\t"),
+            _ => escaped.push(c),
+        }
+    }
+    escaped.push_str("\"");
+    escaped
+}
+
+pub fn print_list(
+    args: &Vec<LispVal>,
+    print_readably: bool,
+    left_str: &str,
+    right_str: &str,
+    join_str: &str,
+) -> String {
+    format!(
+        "{}{}{}",
+        left_str,
+        args.into_iter()
+            .map(|a| a.pr_str(print_readably))
+            .collect::<Vec<_>>()
+            .join(join_str),
+        right_str,
+    )
+}
+
+impl LispVal {
+    pub fn pr_str(&self, print_readably: bool) -> String {
+        match self {
+            Nil => format!("nil"),
+            True => format!("true"),
+            False => format!("false"),
+            Number(n) => format!("{}", n),
+            Atom(n) => format!("{}", n),
+            LString(s) => format!("{}", {
+                if print_readably {
+                    escape_str(&s)
+                } else {
+                    s.clone()
+                }
+            }),
+            Keyword(k) => format!(":{}", k),
+            Map(m) => format!(
+                "{{{}}}",
+                m.into_iter()
+                    .map(|(k, v)| format!(
+                        "{} {}",
+                        k.pr_str(print_readably),
+                        v.pr_str(print_readably),
+                    ))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            ),
+            List(l) => print_list(l, print_readably, "(", ")", " "),
+            Vector(v) => print_list(v, print_readably, "[", "]", " "),
+            Closure(_) => format!("fn"),
+        }
+    }
+}
+
 use self::LispVal::{Atom, Closure, False, Keyword, LString, List, Map, Nil, Number, True, Vector};
 
 impl PartialEq for LispVal {
