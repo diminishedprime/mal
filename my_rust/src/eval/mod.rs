@@ -351,49 +351,55 @@ fn f_map(
 pub fn eval(execy_boi: ExecyBoi) -> LispResult {
     let env = execy_boi.env;
     let val = execy_boi.val;
-    match val {
-        List(list_contents) => match &list_contents[..] {
-            [] => return Ok(val_with_env(List(list_contents.to_vec()), env)),
-            [Atom(op), rest..] => {
-                let rest = rest.to_vec();
-                let l = rest.len();
-                match &op[..] {
-                    "def!" => return eval_def_bang(env, rest),
-                    "let*" => eval_let_star(env, rest),
-                    "do" => eval_do(env, rest),
-                    "if" if l == 2 || l == 3 => eval_if(env, op, rest),
-                    "fn*" => return eval_fn_star(env, rest),
-                    f_name => {
-                        let f = f_map(Arc::clone(&env), f_name.to_string())?;
-                        return apply(f, env, rest);
+    loop {
+        match val {
+            List(list_contents) => match &list_contents[..] {
+                [] => {
+                    return Ok(val_with_env(List(list_contents.to_vec()), env));
+                }
+                [Atom(op), rest..] => {
+                    let rest = rest.to_vec();
+                    let l = rest.len();
+                    match &op[..] {
+                        "def!" => return eval_def_bang(env, rest),
+                        "let*" => return eval_let_star(env, rest),
+                        "do" => return eval_do(env, rest),
+                        "if" if l == 2 || l == 3 => return eval_if(env, op, rest),
+                        "fn*" => return eval_fn_star(env, rest),
+                        f_name => {
+                            let f = f_map(Arc::clone(&env), f_name.to_string())?;
+                            return apply(f, env, rest);
+                        }
                     }
                 }
+                list @ [Closure(_), _..] => {
+                    return apply(
+                        Box::new(|env, args| apply_closure(env, args)),
+                        env,
+                        list.to_vec(),
+                    )
+                }
+                list @ [List(_), _..] => {
+                    return apply(
+                        Box::new(|env, rest| {
+                            let mut list_contents = rest.to_vec();
+                            let eb = val_with_env(list_contents[0].clone(), Arc::clone(&env));
+                            let evaled = eval(eb)?;
+                            let val = evaled.val;
+                            let env = evaled.env;
+                            mem::replace(&mut list_contents[0], val);
+                            eval(val_with_env(List(list_contents), Arc::clone(&env)))
+                        }),
+                        env,
+                        list.to_vec(),
+                    )
+                }
+                _ => return Err(LispError::BadSpecialForm(List(list_contents.clone()))),
+            },
+            _ => {
+                return eval_ast(val_with_env(val, env));
             }
-            list @ [Closure(_), _..] => {
-                return apply(
-                    Box::new(|env, args| apply_closure(env, args)),
-                    env,
-                    list.to_vec(),
-                )
-            }
-            list @ [List(_), _..] => {
-                return apply(
-                    Box::new(|env, rest| {
-                        let mut list_contents = rest.to_vec();
-                        let eb = val_with_env(list_contents[0].clone(), Arc::clone(&env));
-                        let evaled = eval(eb)?;
-                        let val = evaled.val;
-                        let env = evaled.env;
-                        mem::replace(&mut list_contents[0], val);
-                        eval(val_with_env(List(list_contents), Arc::clone(&env)))
-                    }),
-                    env,
-                    list.to_vec(),
-                )
-            }
-            _ => Err(LispError::BadSpecialForm(List(list_contents.clone()))),
-        },
-        _ => return eval_ast(val_with_env(val, env)),
+        };
     }
 }
 
