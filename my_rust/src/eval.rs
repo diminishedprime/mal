@@ -1,10 +1,10 @@
 use lisp_val::LispError;
-use lisp_val::LispError::NotImplemented;
 use lisp_val::LispVal::{
     Atom, Closure, False, Keyword, LString, List, Map, Nil, Number, True, Vector,
 };
 use lisp_val::{AtomContents, Environment, LispVal, ListContents, MapContents};
-use lisp_val::{ExecyBoi, LispResult};
+use lisp_val::{ClosureData, ExecyBoi, LispResult};
+use std::mem;
 use std::sync::Arc;
 
 fn unpack_num(l: &LispVal) -> Result<i32, LispError> {
@@ -49,6 +49,13 @@ fn unpack_hash_map(l: LispVal) -> Result<MapContents, LispError> {
     match l {
         Map(mc) => Ok(mc),
         _ => Err(LispError::TypeMismatch(String::from("Map"), l.clone())),
+    }
+}
+
+fn unpack_closure(l: LispVal) -> Result<ClosureData, LispError> {
+    match l {
+        Closure(cd) => Ok(cd),
+        _ => Err(LispError::TypeMismatch(String::from("Closure"), l.clone())),
     }
 }
 
@@ -187,13 +194,6 @@ fn eval_do(env: Arc<Environment>, elements: Vec<LispVal>) -> LispResult {
     Ok(val_with_env(evaled.1, evaled.0))
 }
 
-fn is_binary_op(op: &AtomContents) -> bool {
-    match &op[..] {
-        "+" | "-" | "*" | "/" | "<" | "<=" | ">" | ">=" | "=" | "let*" | "def!" => true,
-        _ => false,
-    }
-}
-
 fn eval_if(env: Arc<Environment>, op: &AtomContents, exprs: ListContents) -> LispResult {
     if exprs.len() > 3 {
         Err(LispError::NotImplemented(List({
@@ -214,8 +214,39 @@ fn eval_if(env: Arc<Environment>, op: &AtomContents, exprs: ListContents) -> Lis
     }
 }
 
+fn eval_fn_star(env: Arc<Environment>, bindings: LispVal, body: LispVal) -> LispResult {
+    let bindings = unpack_list_or_vec(bindings)?;
+    let bindings = bindings
+        .iter()
+        .map(unpack_atom)
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(val_with_env(
+        Closure(ClosureData {
+            env: Arc::clone(&env),
+            body: Arc::new(body),
+            params: bindings,
+            // TODO(me) - come back to this.
+            vararg: None,
+        }),
+        Arc::clone(&env),
+    ))
+}
+
+fn is_binary_op(op: &AtomContents) -> bool {
+    match &op[..] {
+        "+" | "-" | "*" | "/" | "<" | "<=" | ">" | ">=" | "=" | "let*" | "def!" | "fn*" => true,
+        _ => false,
+    }
+}
+
 fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -> LispResult {
     match &list_contents[..] {
+        [Atom(op), _..] if env.get(op).is_some() => {
+            let mut list_contents = list_contents.clone();
+            let val = (*env.get(op).unwrap()).clone();
+            mem::replace(&mut list_contents[0], val);
+            eval(val_with_env(List(list_contents), Arc::clone(&env)))
+        }
         [Atom(op), first, second] if is_binary_op(op) => match &op[..] {
             "+" | "-" | "*" | "/" | "<" | "<=" | ">" | ">=" => {
                 eval_binary_num_op(env, op, first.clone(), second.clone())
@@ -223,6 +254,7 @@ fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -
             "=" => eval_binary_gen_op(env, op, first.clone(), second.clone()),
             "let*" => eval_let_star(env, first.clone(), second.clone()),
             "def!" => eval_def_bang(env, first.clone(), second.clone()),
+            "fn*" => eval_fn_star(env, first.clone(), second.clone()),
             _ => Err(LispError::NotImplemented(List(vec![
                 LispVal::atom_from(op),
                 first.clone(),
@@ -243,9 +275,32 @@ fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -
     }
 }
 
+fn apply_closure(env: Arc<Environment>, list_contents: Vec<LispVal>) -> LispResult {
+    let ClosureData {
+        params,
+        body,
+        env: closure_env,
+        vararg: _,
+    } = unpack_closure(list_contents[0].clone())?;
+    let evaled_params = list_contents[1..]
+        .to_vec()
+        .into_iter()
+        .map(|expr| eval(val_with_env(expr, Arc::clone(&env))))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .map(|eb| eb.val)
+        .collect::<Vec<_>>();
+    let bindings = params
+        .into_iter()
+        .zip(evaled_params)
+        .collect::<Vec<(_, _)>>();
+    let env = env.with_bindings(bindings).over_env(&closure_env);
+    eval(val_with_env((*body).clone(), Arc::new(env)))
+}
+
 fn eval_list(execy_boi: ExecyBoi) -> LispResult {
     let env = execy_boi.env;
-    let list_contents = unpack_list(execy_boi.val)?;
+    let mut list_contents = unpack_list(execy_boi.val)?;
     if list_contents.len() == 0 {
         Ok(ExecyBoi {
             env,
@@ -254,6 +309,15 @@ fn eval_list(execy_boi: ExecyBoi) -> LispResult {
     } else {
         match &list_contents[0] {
             Atom(_) => eval_list_first_is_atom(list_contents, env),
+            Closure(_) => apply_closure(env, list_contents),
+            List(_) => {
+                let eb = val_with_env(list_contents[0].clone(), Arc::clone(&env));
+                let evaled = eval(eb)?;
+                let val = evaled.val;
+                let env = evaled.env;
+                mem::replace(&mut list_contents[0], val);
+                eval(val_with_env(List(list_contents), Arc::clone(&env)))
+            }
             _ => Err(LispError::BadSpecialForm(List(list_contents))),
         }
     }
@@ -301,7 +365,8 @@ pub fn eval(execy_boi: ExecyBoi) -> LispResult {
         // :hello -> :hello
         // true -> true
         // false -> false
-        Nil | LString(_) | Number(_) | Keyword(_) | True | False => Ok(execy_boi),
+        // (fn* [a] a) => fn#
+        Nil | LString(_) | Number(_) | Keyword(_) | True | False | Closure(_) => Ok(execy_boi),
         Atom(_) => eval_atom(execy_boi),
         // (+ 1 1) => 2
         // ((fn* [a] a) 3) => 3
@@ -311,7 +376,6 @@ pub fn eval(execy_boi: ExecyBoi) -> LispResult {
         Vector(_) => eval_vector(execy_boi),
         // { (+ 1 2) (+ 2 2) } => { 3 4 }
         Map(_) => eval_hashmap(execy_boi),
-        Closure(_) => Err(NotImplemented(execy_boi.val)),
     }
 }
 
@@ -320,7 +384,7 @@ mod tests {
 
     use super::*;
     use lisp_val::LispVal;
-    use lisp_val::{Environment, ExecyBoi};
+    use lisp_val::{ClosureData, Environment, ExecyBoi};
     use parser;
     use std::sync::Arc;
 
@@ -384,6 +448,18 @@ mod tests {
             ("(if true 3 a)", Number(3)),
             ("(if false a 3)", Number(3)),
             ("(if (def! a true) a false)", True),
+            (
+                "(fn* [] 3)",
+                Closure(ClosureData {
+                    vararg: None,
+                    params: vec![],
+                    body: Arc::new(Number(3)),
+                    env: Arc::new(Environment::new()),
+                }),
+            ),
+            ("((fn* [] 3))", Number(3)),
+            ("(do (def! a (fn* [] 3)) (a))", Number(3)),
+            ("(do (def! a (fn* [a] a)) (a 3))", Number(3)),
         ];
         for (input, expected) in test_data.into_iter() {
             let input = parse(input);

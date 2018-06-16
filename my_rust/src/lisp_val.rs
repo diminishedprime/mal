@@ -108,6 +108,12 @@ impl Environment {
         }
     }
 
+    pub fn over_env(self, env: &Environment) -> Self {
+        Environment {
+            contents: self.contents.union(env.contents.clone()),
+        }
+    }
+
     pub fn with_bindings(&self, bindings: Vec<Binding>) -> Self {
         Environment {
             contents: bindings
@@ -180,7 +186,8 @@ impl PartialEq for LispVal {
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct ClosureData {
-    pub name_bindings: Vec<AtomContents>,
+    pub params: Vec<AtomContents>,
+    pub vararg: Option<AtomContents>,
     pub body: Arc<LispVal>,
     pub env: Arc<Environment>,
 }
