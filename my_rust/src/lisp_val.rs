@@ -216,6 +216,12 @@ impl From<String> for LispVal {
     }
 }
 
+impl From<usize> for LispVal {
+    fn from(i: usize) -> Self {
+        LispVal::Number(i as i32)
+    }
+}
+
 impl From<i32> for LispVal {
     fn from(i: i32) -> Self {
         LispVal::Number(i)

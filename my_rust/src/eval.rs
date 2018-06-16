@@ -239,6 +239,48 @@ fn is_binary_op(op: &AtomContents) -> bool {
     }
 }
 
+fn is_unary_op(op: &AtomContents) -> bool {
+    match &op[..] {
+        "list?" | "empty?" | "count" => true,
+        _ => false,
+    }
+}
+
+type ValErr = Result<LispVal, LispError>;
+fn is_list(arg: LispVal) -> ValErr {
+    Ok(LispVal::from(match arg {
+        List(_) => true,
+        _ => false,
+    }))
+}
+
+fn is_empty(arg: LispVal) -> ValErr {
+    Ok(LispVal::from(match arg {
+        Vector(vc) => vc.is_empty(),
+        List(lc) => lc.is_empty(),
+        _ => false,
+    }))
+}
+
+fn count(arg: LispVal) -> ValErr {
+    Ok(LispVal::from(match arg {
+        Vector(vc) => vc.len(),
+        List(lc) => lc.len(),
+        _ => return Err(LispError::TypeMismatch(String::from("countable"), arg)),
+    }))
+}
+
+fn eval_unary_op(env: Arc<Environment>, op: &AtomContents, arg: LispVal) -> LispResult {
+    let evaled = eval(val_with_env(arg, Arc::clone(&env)))?;
+    let f = match &op[..] {
+        "list?" => is_list,
+        "empty?" => is_empty,
+        "count" => count,
+        _ => return Err(LispError::NotImplemented(LispVal::atom_from(op))),
+    };
+    Ok(val_with_env(f(evaled.val)?, env))
+}
+
 fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -> LispResult {
     match &list_contents[..] {
         [Atom(op), _..] if env.get(op).is_some() => {
@@ -247,6 +289,7 @@ fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -
             mem::replace(&mut list_contents[0], val);
             eval(val_with_env(List(list_contents), Arc::clone(&env)))
         }
+        [Atom(op), arg] if is_unary_op(op) => eval_unary_op(env, op, arg.clone()),
         [Atom(op), first, second] if is_binary_op(op) => match &op[..] {
             "+" | "-" | "*" | "/" | "<" | "<=" | ">" | ">=" => {
                 eval_binary_num_op(env, op, first.clone(), second.clone())
@@ -460,6 +503,10 @@ mod tests {
             ("((fn* [] 3))", Number(3)),
             ("(do (def! a (fn* [] 3)) (a))", Number(3)),
             ("(do (def! a (fn* [a] a)) (a 3))", Number(3)),
+            ("(list? (list 1 2 3))", True),
+            ("(empty? (list))", True),
+            ("(empty? (list 1))", False),
+            ("(count (list 1))", Number(1)),
         ];
         for (input, expected) in test_data.into_iter() {
             let input = parse(input);
