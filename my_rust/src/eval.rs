@@ -176,9 +176,47 @@ fn eval_make_list(env: Arc<Environment>, elements: Vec<LispVal>) -> LispResult {
     ))
 }
 
+fn eval_do(env: Arc<Environment>, elements: Vec<LispVal>) -> LispResult {
+    let acc = Ok((env, Nil));
+    let evaled = elements.into_iter().fold(acc, |acc, expr| {
+        let env = acc?.0;
+        let evaled = eval(val_with_env(expr, Arc::clone(&env)))?;
+        Ok((evaled.env, evaled.val))
+    });
+    let evaled = evaled?;
+    Ok(val_with_env(evaled.1, evaled.0))
+}
+
+fn is_binary_op(op: &AtomContents) -> bool {
+    match &op[..] {
+        "+" | "-" | "*" | "/" | "<" | "<=" | ">" | ">=" | "=" | "let*" | "def!" => true,
+        _ => false,
+    }
+}
+
+fn eval_if(env: Arc<Environment>, op: &AtomContents, exprs: ListContents) -> LispResult {
+    if exprs.len() > 3 {
+        Err(LispError::NotImplemented(List({
+            let mut list = vec![LispVal::atom_from(op)];
+            list.append(&mut exprs.to_vec());
+            list
+        })))
+    } else {
+        let pred = exprs[0].clone();
+        let evaled_pred = eval(val_with_env(pred, Arc::clone(&env)))?;
+        match evaled_pred.val {
+            Nil | False => eval(val_with_env(
+                exprs.get(2).unwrap_or(&Nil).clone(),
+                Arc::clone(&evaled_pred.env),
+            )),
+            _ => eval(val_with_env(exprs[1].clone(), Arc::clone(&evaled_pred.env))),
+        }
+    }
+}
+
 fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -> LispResult {
     match &list_contents[..] {
-        [Atom(op), first, second] if op != "list" => match &op[..] {
+        [Atom(op), first, second] if is_binary_op(op) => match &op[..] {
             "+" | "-" | "*" | "/" | "<" | "<=" | ">" | ">=" => {
                 eval_binary_num_op(env, op, first.clone(), second.clone())
             }
@@ -192,7 +230,9 @@ fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -
             ]))),
         },
         [Atom(op), rest..] => match &op[..] {
+            "if" => eval_if(env, op, rest.to_vec()),
             "list" => eval_make_list(env, rest.to_vec()),
+            "do" => eval_do(env, rest.to_vec()),
             _ => Err(LispError::NotImplemented(List({
                 let mut list = vec![LispVal::atom_from(op)];
                 list.append(&mut rest.to_vec());
@@ -340,6 +380,10 @@ mod tests {
             ("(>= 1 1)", True),
             ("(>= 1 2)", False),
             ("(>= 2 1)", True),
+            ("(do (def! a 3) a)", Number(3)),
+            ("(if true 3 a)", Number(3)),
+            ("(if false a 3)", Number(3)),
+            ("(if (def! a true) a false)", True),
         ];
         for (input, expected) in test_data.into_iter() {
             let input = parse(input);
