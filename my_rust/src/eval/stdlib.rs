@@ -1,43 +1,72 @@
 use lisp_val::LispError;
 use lisp_val::LispVal;
-use lisp_val::LispVal::{List, Vector};
+use lisp_val::LispVal::{List, Number, Vector};
 
 type ValErr = Result<LispVal, LispError>;
 
-pub fn add(a: i32, b: i32) -> LispVal {
-    LispVal::from(a + b)
+pub fn add(a: LispVal, b: LispVal) -> ValErr {
+    Ok(LispVal::from(match (&a, &b) {
+        (Number(a), Number(b)) => a + b,
+        _ => {
+            return Err(LispError::TypeMismatch(
+                String::from("number"),
+                a.clone().clone(),
+            ))
+        }
+    }))
 }
 
-pub fn subtract(a: i32, b: i32) -> LispVal {
-    LispVal::from(a - b)
+pub fn subtract(a: LispVal, b: LispVal) -> ValErr {
+    Ok(LispVal::from(match (&a, &b) {
+        (Number(a), Number(b)) => a - b,
+        _ => return Err(LispError::TypeMismatch(String::from("number"), a.clone())),
+    }))
 }
 
-pub fn multiply(a: i32, b: i32) -> LispVal {
-    LispVal::from(a * b)
+pub fn multiply(a: LispVal, b: LispVal) -> ValErr {
+    Ok(LispVal::from(match (&a, &b) {
+        (Number(a), Number(b)) => a * b,
+        _ => return Err(LispError::TypeMismatch(String::from("number"), a.clone())),
+    }))
 }
 
-pub fn divide(a: i32, b: i32) -> LispVal {
-    LispVal::from(a / b)
+pub fn divide(a: LispVal, b: LispVal) -> ValErr {
+    Ok(LispVal::from(match (&a, &b) {
+        (Number(a), Number(b)) => a / b,
+        _ => return Err(LispError::TypeMismatch(String::from("number"), a.clone())),
+    }))
 }
 
-pub fn lt(a: i32, b: i32) -> LispVal {
-    LispVal::from(a < b)
+pub fn lt(a: LispVal, b: LispVal) -> ValErr {
+    Ok(LispVal::from(match (&a, &b) {
+        (Number(a), Number(b)) => a < b,
+        _ => return Err(LispError::TypeMismatch(String::from("number"), a.clone())),
+    }))
 }
 
-pub fn lte(a: i32, b: i32) -> LispVal {
-    LispVal::from(a <= b)
+pub fn lte(a: LispVal, b: LispVal) -> ValErr {
+    Ok(LispVal::from(match (&a, &b) {
+        (Number(a), Number(b)) => a <= b,
+        _ => return Err(LispError::TypeMismatch(String::from("number"), a.clone())),
+    }))
 }
 
-pub fn gt(a: i32, b: i32) -> LispVal {
-    LispVal::from(a > b)
+pub fn gt(a: LispVal, b: LispVal) -> ValErr {
+    Ok(LispVal::from(match (&a, &b) {
+        (Number(a), Number(b)) => a > b,
+        _ => return Err(LispError::TypeMismatch(String::from("number"), a.clone())),
+    }))
 }
 
-pub fn gte(a: i32, b: i32) -> LispVal {
-    LispVal::from(a >= b)
+pub fn gte(a: LispVal, b: LispVal) -> ValErr {
+    Ok(LispVal::from(match (&a, &b) {
+        (Number(a), Number(b)) => a >= b,
+        _ => return Err(LispError::TypeMismatch(String::from("number"), a.clone())),
+    }))
 }
 
-pub fn eq(a: LispVal, b: LispVal) -> bool {
-    a == b
+pub fn eq(a: LispVal, b: LispVal) -> ValErr {
+    Ok(LispVal::from(a == b))
 }
 
 pub fn is_list(arg: LispVal) -> ValErr {
