@@ -1,70 +1,21 @@
+use lisp_val;
 use lisp_val::LispError;
 use lisp_val::LispVal::{
     Atom, Closure, False, Keyword, LString, List, Map, Nil, Number, True, Vector,
 };
-use lisp_val::{AtomContents, Environment, LispVal, ListContents, MapContents};
+use lisp_val::{AtomContents, Environment, LispVal, ListContents};
 use lisp_val::{ClosureData, ExecyBoi, LispResult};
 use std::mem;
 use std::sync::Arc;
 
-fn unpack_num(l: &LispVal) -> Result<i32, LispError> {
-    match l {
-        Number(ac) => Ok(*ac),
-        _ => Err(LispError::TypeMismatch(String::from("number"), l.clone())),
-    }
-}
-
-fn unpack_atom(l: &LispVal) -> Result<AtomContents, LispError> {
-    match l {
-        Atom(ac) => Ok(ac.clone()),
-        _ => Err(LispError::TypeMismatch(String::from("Atom"), l.clone())),
-    }
-}
-
-fn unpack_list(l: LispVal) -> Result<ListContents, LispError> {
-    match l {
-        List(lc) => Ok(lc),
-        _ => Err(LispError::TypeMismatch(String::from("List"), l.clone())),
-    }
-}
-
-fn unpack_vec(l: LispVal) -> Result<ListContents, LispError> {
-    match l {
-        Vector(vc) => Ok(vc),
-        _ => Err(LispError::TypeMismatch(String::from("Vector"), l.clone())),
-    }
-}
-
-fn unpack_list_or_vec(l: LispVal) -> Result<Vec<LispVal>, LispError> {
-    match l {
-        Vector(c) | List(c) => Ok(c),
-        _ => Err(LispError::TypeMismatch(
-            String::from("Vector or List"),
-            l.clone(),
-        )),
-    }
-}
-
-fn unpack_hash_map(l: LispVal) -> Result<MapContents, LispError> {
-    match l {
-        Map(mc) => Ok(mc),
-        _ => Err(LispError::TypeMismatch(String::from("Map"), l.clone())),
-    }
-}
-
-fn unpack_closure(l: LispVal) -> Result<ClosureData, LispError> {
-    match l {
-        Closure(cd) => Ok(cd),
-        _ => Err(LispError::TypeMismatch(String::from("Closure"), l.clone())),
-    }
-}
+mod stdlib;
 
 /// Evaluates an atom
 ///
 /// An atom is evaluated by looking it up in the environment. If it is bound,
 /// return the value it is bound to. Otherwise return an UnboundVar error.
 fn eval_atom(execy_boi: ExecyBoi) -> LispResult {
-    let atom = unpack_atom(&execy_boi.val)?;
+    let atom = lisp_val::unpack_atom(&execy_boi.val)?;
     let bound_val = execy_boi.env.get(&atom);
     if let Some(bound_val) = bound_val {
         Ok(execy_boi.with_value((*bound_val).clone()))
@@ -73,40 +24,8 @@ fn eval_atom(execy_boi: ExecyBoi) -> LispResult {
     }
 }
 
-fn add(a: i32, b: i32) -> LispVal {
-    LispVal::from(a + b)
-}
-
-fn subtract(a: i32, b: i32) -> LispVal {
-    LispVal::from(a - b)
-}
-
-fn multiply(a: i32, b: i32) -> LispVal {
-    LispVal::from(a * b)
-}
-
-fn divide(a: i32, b: i32) -> LispVal {
-    LispVal::from(a / b)
-}
-
 fn val_with_env(val: LispVal, env: Arc<Environment>) -> ExecyBoi {
     ExecyBoi { val, env }
-}
-
-fn lt(a: i32, b: i32) -> LispVal {
-    LispVal::from(a < b)
-}
-
-fn lte(a: i32, b: i32) -> LispVal {
-    LispVal::from(a <= b)
-}
-
-fn gt(a: i32, b: i32) -> LispVal {
-    LispVal::from(a > b)
-}
-
-fn gte(a: i32, b: i32) -> LispVal {
-    LispVal::from(a >= b)
 }
 
 fn eval_binary_num_op(
@@ -118,22 +37,21 @@ fn eval_binary_num_op(
     let first = eval(val_with_env(first, Arc::clone(&env)))?.val;
     let second = eval(val_with_env(second, Arc::clone(&env)))?.val;
     let op = match &op[..] {
-        "+" => add,
-        "-" => subtract,
-        "*" => multiply,
-        "/" => divide,
-        "<" => lt,
-        "<=" => lte,
-        ">" => gt,
-        ">=" => gte,
+        "+" => stdlib::add,
+        "-" => stdlib::subtract,
+        "*" => stdlib::multiply,
+        "/" => stdlib::divide,
+        "<" => stdlib::lt,
+        "<=" => stdlib::lte,
+        ">" => stdlib::gt,
+        ">=" => stdlib::gte,
         _ => return Err(LispError::NotFunction(op.to_string())),
     };
-    let result = op(unpack_num(&first)?, unpack_num(&second)?);
+    let result = op(
+        lisp_val::unpack_num(&first)?,
+        lisp_val::unpack_num(&second)?,
+    );
     Ok(val_with_env(result, env))
-}
-
-fn eq(a: LispVal, b: LispVal) -> bool {
-    a == b
 }
 
 fn eval_binary_gen_op(
@@ -145,7 +63,7 @@ fn eval_binary_gen_op(
     let first = eval(val_with_env(first, Arc::clone(&env)))?.val;
     let second = eval(val_with_env(second, Arc::clone(&env)))?.val;
     let op = match &op[..] {
-        "=" => eq,
+        "=" => stdlib::eq,
         _ => return Err(LispError::NotFunction(op.to_string())),
     };
     let result = op(first, second);
@@ -153,13 +71,13 @@ fn eval_binary_gen_op(
 }
 
 fn eval_let_star(env: Arc<Environment>, bindings: LispVal, expression: LispVal) -> LispResult {
-    let bindings = unpack_list_or_vec(bindings)?;
+    let bindings = lisp_val::unpack_list_or_vec(bindings)?;
     // check bindings is even
     let mut let_star_env = Arc::clone(&env);
     bindings
         .chunks(2)
         .map(|chunk| {
-            let name = unpack_atom(&chunk[0])?;
+            let name = lisp_val::unpack_atom(&chunk[0])?;
             let eb = eval(val_with_env(chunk[1].clone(), Arc::clone(&let_star_env)))?;
             let_star_env = Arc::new(let_star_env.with_bindings(vec![(name, eb.val)]));
             Ok(())
@@ -170,7 +88,7 @@ fn eval_let_star(env: Arc<Environment>, bindings: LispVal, expression: LispVal) 
 }
 
 fn eval_def_bang(env: Arc<Environment>, name: LispVal, expression: LispVal) -> LispResult {
-    let name = unpack_atom(&name)?;
+    let name = lisp_val::unpack_atom(&name)?;
     let val = eval(val_with_env(expression, Arc::clone(&env)))?.val;
     let env = env.with_binding((name, val.clone()));
     Ok(val_with_env(val, Arc::new(env)))
@@ -215,10 +133,10 @@ fn eval_if(env: Arc<Environment>, op: &AtomContents, exprs: ListContents) -> Lis
 }
 
 fn eval_fn_star(env: Arc<Environment>, bindings: LispVal, body: LispVal) -> LispResult {
-    let bindings = unpack_list_or_vec(bindings)?;
+    let bindings = lisp_val::unpack_list_or_vec(bindings)?;
     let bindings = bindings
         .iter()
-        .map(unpack_atom)
+        .map(lisp_val::unpack_atom)
         .collect::<Result<Vec<_>, _>>()?;
     Ok(val_with_env(
         Closure(ClosureData {
@@ -246,36 +164,12 @@ fn is_unary_op(op: &AtomContents) -> bool {
     }
 }
 
-type ValErr = Result<LispVal, LispError>;
-fn is_list(arg: LispVal) -> ValErr {
-    Ok(LispVal::from(match arg {
-        List(_) => true,
-        _ => false,
-    }))
-}
-
-fn is_empty(arg: LispVal) -> ValErr {
-    Ok(LispVal::from(match arg {
-        Vector(vc) => vc.is_empty(),
-        List(lc) => lc.is_empty(),
-        _ => false,
-    }))
-}
-
-fn count(arg: LispVal) -> ValErr {
-    Ok(LispVal::from(match arg {
-        Vector(vc) => vc.len(),
-        List(lc) => lc.len(),
-        _ => return Err(LispError::TypeMismatch(String::from("countable"), arg)),
-    }))
-}
-
 fn eval_unary_op(env: Arc<Environment>, op: &AtomContents, arg: LispVal) -> LispResult {
     let evaled = eval(val_with_env(arg, Arc::clone(&env)))?;
     let f = match &op[..] {
-        "list?" => is_list,
-        "empty?" => is_empty,
-        "count" => count,
+        "list?" => stdlib::is_list,
+        "empty?" => stdlib::is_empty,
+        "count" => stdlib::count,
         _ => return Err(LispError::NotImplemented(LispVal::atom_from(op))),
     };
     Ok(val_with_env(f(evaled.val)?, env))
@@ -324,7 +218,7 @@ fn apply_closure(env: Arc<Environment>, list_contents: Vec<LispVal>) -> LispResu
         body,
         env: closure_env,
         vararg: _,
-    } = unpack_closure(list_contents[0].clone())?;
+    } = lisp_val::unpack_closure(list_contents[0].clone())?;
     let evaled_params = list_contents[1..]
         .to_vec()
         .into_iter()
@@ -343,7 +237,7 @@ fn apply_closure(env: Arc<Environment>, list_contents: Vec<LispVal>) -> LispResu
 
 fn eval_list(execy_boi: ExecyBoi) -> LispResult {
     let env = execy_boi.env;
-    let mut list_contents = unpack_list(execy_boi.val)?;
+    let mut list_contents = lisp_val::unpack_list(execy_boi.val)?;
     if list_contents.len() == 0 {
         Ok(ExecyBoi {
             env,
@@ -381,14 +275,14 @@ fn eval_vec_or_list_contents(
 
 fn eval_vector(execy_boi: ExecyBoi) -> LispResult {
     let env = execy_boi.env;
-    let vec_contents = unpack_vec(execy_boi.val)?;
+    let vec_contents = lisp_val::unpack_vec(execy_boi.val)?;
     let vec_contents = eval_vec_or_list_contents(Arc::clone(&env), vec_contents)?;
     Ok(val_with_env(Vector(vec_contents), Arc::clone(&env)))
 }
 
 fn eval_hashmap(execy_boi: ExecyBoi) -> LispResult {
     let env = execy_boi.env;
-    let hash_contents = unpack_hash_map(execy_boi.val)?;
+    let hash_contents = lisp_val::unpack_hash_map(execy_boi.val)?;
     let hash_contents = hash_contents
         .into_iter()
         .fold(Ok(hashmap!()), |map, (k, v)| {

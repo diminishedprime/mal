@@ -4,6 +4,58 @@ use std::fmt::Display;
 use std::slice::SliceConcatExt;
 use std::sync::Arc;
 
+pub fn unpack_num(l: &LispVal) -> Result<i32, LispError> {
+    match l {
+        Number(ac) => Ok(*ac),
+        _ => Err(LispError::TypeMismatch(String::from("number"), l.clone())),
+    }
+}
+
+pub fn unpack_atom(l: &LispVal) -> Result<AtomContents, LispError> {
+    match l {
+        Atom(ac) => Ok(ac.clone()),
+        _ => Err(LispError::TypeMismatch(String::from("Atom"), l.clone())),
+    }
+}
+
+pub fn unpack_list(l: LispVal) -> Result<ListContents, LispError> {
+    match l {
+        List(lc) => Ok(lc),
+        _ => Err(LispError::TypeMismatch(String::from("List"), l.clone())),
+    }
+}
+
+pub fn unpack_vec(l: LispVal) -> Result<ListContents, LispError> {
+    match l {
+        Vector(vc) => Ok(vc),
+        _ => Err(LispError::TypeMismatch(String::from("Vector"), l.clone())),
+    }
+}
+
+pub fn unpack_list_or_vec(l: LispVal) -> Result<Vec<LispVal>, LispError> {
+    match l {
+        Vector(c) | List(c) => Ok(c),
+        _ => Err(LispError::TypeMismatch(
+            String::from("Vector or List"),
+            l.clone(),
+        )),
+    }
+}
+
+pub fn unpack_hash_map(l: LispVal) -> Result<MapContents, LispError> {
+    match l {
+        Map(mc) => Ok(mc),
+        _ => Err(LispError::TypeMismatch(String::from("Map"), l.clone())),
+    }
+}
+
+pub fn unpack_closure(l: LispVal) -> Result<ClosureData, LispError> {
+    match l {
+        Closure(cd) => Ok(cd),
+        _ => Err(LispError::TypeMismatch(String::from("Closure"), l.clone())),
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct ExecyBoi {
     pub val: LispVal,
