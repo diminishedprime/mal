@@ -339,40 +339,61 @@ fn f_map(
     }
 }
 
+// while true:
+//     switch ast[0]:
+//     'let*:        env = ...; ast = ast[2] // TCO
+//     'do:          ast = eval_ast(ast[1..-1], env)[-1] // TCO
+//     'if:          EVAL(ast[1], env) ? ast = ast[2] : ast = ast[3] // TCO
+//     _default_:    f, args = eval_ast(ast, env)
+//                   if malfunc?(f): ast = f.fn; env = ... // TCO
+//                   else:           return apply(f, args)
+
 pub fn eval(execy_boi: ExecyBoi) -> LispResult {
     let env = execy_boi.env;
     let val = execy_boi.val;
     match val {
         List(list_contents) => match &list_contents[..] {
-            [] => Ok(val_with_env(List(list_contents.to_vec()), env)),
+            [] => return Ok(val_with_env(List(list_contents.to_vec()), env)),
             [Atom(op), rest..] => {
                 let rest = rest.to_vec();
                 let l = rest.len();
                 match &op[..] {
-                    "def!" => eval_def_bang(env, rest),
+                    "def!" => return eval_def_bang(env, rest),
                     "let*" => eval_let_star(env, rest),
                     "do" => eval_do(env, rest),
                     "if" if l == 2 || l == 3 => eval_if(env, op, rest),
-                    "fn*" => eval_fn_star(env, rest),
+                    "fn*" => return eval_fn_star(env, rest),
                     f_name => {
                         let f = f_map(Arc::clone(&env), f_name.to_string())?;
-                        apply(f, env, rest)
+                        return apply(f, env, rest);
                     }
                 }
             }
-            list @ [Closure(_), _..] => apply_closure(env, list.to_vec()),
+            list @ [Closure(_), _..] => {
+                return apply(
+                    Box::new(|env, args| apply_closure(env, args)),
+                    env,
+                    list.to_vec(),
+                )
+            }
             list @ [List(_), _..] => {
-                let mut list_contents = list.to_vec();
-                let eb = val_with_env(list_contents[0].clone(), Arc::clone(&env));
-                let evaled = eval(eb)?;
-                let val = evaled.val;
-                let env = evaled.env;
-                mem::replace(&mut list_contents[0], val);
-                eval(val_with_env(List(list_contents), Arc::clone(&env)))
+                return apply(
+                    Box::new(|env, rest| {
+                        let mut list_contents = rest.to_vec();
+                        let eb = val_with_env(list_contents[0].clone(), Arc::clone(&env));
+                        let evaled = eval(eb)?;
+                        let val = evaled.val;
+                        let env = evaled.env;
+                        mem::replace(&mut list_contents[0], val);
+                        eval(val_with_env(List(list_contents), Arc::clone(&env)))
+                    }),
+                    env,
+                    list.to_vec(),
+                )
             }
             _ => Err(LispError::BadSpecialForm(List(list_contents.clone()))),
         },
-        _ => eval_ast(val_with_env(val, env)),
+        _ => return eval_ast(val_with_env(val, env)),
     }
 }
 
