@@ -30,7 +30,7 @@ fn eval_loop(incoming_env: Arc<Environment>) -> Result<ExecyBoi, LispError> {
 }
 
 pub fn main() {
-    let mut env = Arc::new(lisp_val::Environment::new());
+    let mut env = Arc::new(lisp_val::Environment::prelude().unwrap());
     loop {
         if let Ok(execy_boi) = eval_loop(Arc::clone(&env)) {
             env = execy_boi.env;

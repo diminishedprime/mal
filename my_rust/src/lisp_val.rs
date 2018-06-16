@@ -1,4 +1,6 @@
+use eval;
 use im::HashMap;
+use parser;
 use std::fmt;
 use std::fmt::Display;
 use std::slice::SliceConcatExt;
@@ -142,6 +144,20 @@ pub struct Environment {
 pub type Binding = (AtomContents, LispVal);
 
 impl Environment {
+    pub fn prelude() -> Result<Self, LispError> {
+        let parsed_forms = eval::prelude::prelude_forms()
+            .iter()
+            .map(|s| parser::parse(&s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut env = Arc::new(Environment::new());
+        for expr in parsed_forms {
+            let eb = ExecyBoi { val: expr, env };
+            let evaled = eval::eval(eb)?;
+            env = evaled.env;
+        }
+        Ok((*env).clone())
+    }
+
     pub fn shadowing(env: Environment) -> Environment {
         Environment {
             contents: env.contents,
@@ -253,6 +269,12 @@ impl LispVal {
     }
     pub fn keyword_from(s: &str) -> LispVal {
         LispVal::Keyword(s.to_owned())
+    }
+}
+
+impl<'a> From<&'a str> for LispVal {
+    fn from(s: &str) -> Self {
+        LispVal::LString(s.to_string())
     }
 }
 

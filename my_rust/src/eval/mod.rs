@@ -8,6 +8,7 @@ use lisp_val::{ClosureData, ExecyBoi, LispResult};
 use std::mem;
 use std::sync::Arc;
 
+pub mod prelude;
 mod stdlib;
 
 /// Evaluates an atom
@@ -90,19 +91,32 @@ fn eval_if(env: Arc<Environment>, op: &AtomContents, exprs: ListContents) -> Lis
     }
 }
 
+fn ampersand_pos(b: &Vec<String>) -> Option<usize> {
+    for (idx, item) in b.iter().enumerate() {
+        if item == "&" {
+            return Some(idx);
+        }
+    }
+    None
+}
+
 fn eval_fn_star(env: Arc<Environment>, bindings: LispVal, body: LispVal) -> LispResult {
     let bindings = lisp_val::unpack_list_or_vec(bindings)?;
-    let bindings = bindings
+    let mut bindings = bindings
         .iter()
         .map(lisp_val::unpack_atom)
         .collect::<Result<Vec<_>, _>>()?;
+    let mut vararg = None;
+    if let Some(p) = ampersand_pos(&bindings) {
+        let split = bindings.split_off(p);
+        vararg = Some(split[1].clone())
+    }
     Ok(val_with_env(
         Closure(ClosureData {
             env: Arc::clone(&env),
             body: Arc::new(body),
             params: bindings,
-            // TODO(me) - come back to this.
-            vararg: None,
+            vararg,
         }),
         Arc::clone(&env),
     ))
@@ -159,6 +173,26 @@ fn eval_binary_op(
     Ok(val_with_env(f(first.val, second.val)?, env))
 }
 
+fn eval_pr_str(env: Arc<Environment>, args: Vec<LispVal>) -> LispResult {
+    let results = eval_vec_or_list_contents(Arc::clone(&env), args)?;
+    Ok(val_with_env(stdlib::pr_str(results)?, env))
+}
+
+fn eval_println(env: Arc<Environment>, args: Vec<LispVal>) -> LispResult {
+    let results = eval_vec_or_list_contents(Arc::clone(&env), args)?;
+    Ok(val_with_env(stdlib::println(results)?, env))
+}
+
+fn eval_prn(env: Arc<Environment>, args: Vec<LispVal>) -> LispResult {
+    let results = eval_vec_or_list_contents(Arc::clone(&env), args)?;
+    Ok(val_with_env(stdlib::prn(results)?, env))
+}
+
+fn eval_str(env: Arc<Environment>, args: Vec<LispVal>) -> LispResult {
+    let results = eval_vec_or_list_contents(Arc::clone(&env), args)?;
+    Ok(val_with_env(stdlib::str(results)?, env))
+}
+
 fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -> LispResult {
     match &list_contents[..] {
         [Atom(op), _..] if env.get(op).is_some() => {
@@ -175,6 +209,10 @@ fn eval_list_first_is_atom(list_contents: ListContents, env: Arc<Environment>) -
             "if" => eval_if(env, op, rest.to_vec()),
             "list" => eval_make_list(env, rest.to_vec()),
             "do" => eval_do(env, rest.to_vec()),
+            "pr-str" => eval_pr_str(env, rest.to_vec()),
+            "str" => eval_str(env, rest.to_vec()),
+            "prn" => eval_prn(env, rest.to_vec()),
+            "println" => eval_println(env, rest.to_vec()),
             _ => Err(LispError::NotImplemented(List({
                 let mut list = vec![LispVal::atom_from(op)];
                 list.append(&mut rest.to_vec());
@@ -190,7 +228,7 @@ fn apply_closure(env: Arc<Environment>, list_contents: Vec<LispVal>) -> LispResu
         params,
         body,
         env: closure_env,
-        vararg: _,
+        vararg,
     } = lisp_val::unpack_closure(list_contents[0].clone())?;
     let evaled_params = list_contents[1..]
         .to_vec()
@@ -200,10 +238,18 @@ fn apply_closure(env: Arc<Environment>, list_contents: Vec<LispVal>) -> LispResu
         .into_iter()
         .map(|eb| eb.val)
         .collect::<Vec<_>>();
-    let bindings = params
+    let param_len = params.len();
+    let mut bindings = params
         .into_iter()
-        .zip(evaled_params)
+        .zip(evaled_params.clone())
         .collect::<Vec<(_, _)>>();
+    if let Some(n) = vararg {
+        let rest = evaled_params
+            .into_iter()
+            .skip(param_len)
+            .collect::<Vec<_>>();
+        bindings.push((n, List(rest)));
+    }
     let env = env.with_bindings(bindings).over_env(&closure_env);
     eval(val_with_env((*body).clone(), Arc::new(env)))
 }
@@ -374,9 +420,22 @@ mod tests {
             ("(empty? (list))", True),
             ("(empty? (list 1))", False),
             ("(count (list 1))", Number(1)),
+            ("((fn* (& more) (list? more)))", True),
+            // (pr-str "") => "\\"\\""
+            (r#"(pr-str "")"#, LispVal::from(r#"\\"\\""#)),
         ];
         for (input, expected) in test_data.into_iter() {
             let input = parse(input);
+            let actual = eval(input).unwrap_or_else(|e| panic!("{}", e)).val;
+            assert_eq!(actual, expected);
+        }
+    }
+
+    #[test]
+    fn bunch_of_tests_prelude() {
+        let test_data = vec![("(not true)", False), ("(not false)", True)];
+        for (input, expected) in test_data.into_iter() {
+            let input = parse_with_env(input, Environment::prelude().unwrap());
             let actual = eval(input).unwrap_or_else(|e| panic!("{}", e)).val;
             assert_eq!(actual, expected);
         }
@@ -437,5 +496,10 @@ mod tests {
         let actual = eval(input).unwrap_err();
         let expected = LispError::UnboundVar(String::from("a"));
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test() {
+        // (pr-str "")\r\n"\\"\\""'
     }
 }
