@@ -4,6 +4,7 @@ use std::fmt::Display;
 #[derive(Clone, PartialEq, Debug)]
 pub enum AST {
     List(Vec<AST>),
+    Map(Vec<AST>),
     Symbol(String),
     Double(f64),
     LString(String),
@@ -15,11 +16,24 @@ impl Display for AST {
         use AST::Double;
         use AST::LString;
         use AST::List;
+        use AST::Map;
         use AST::Symbol;
         match self {
             Double(a) => write!(f, "{}", a),
             Symbol(a) => write!(f, "{}", a),
             LString(a) => write!(f, r#""{}""#, a),
+            Map(contents) => {
+                write!(f, "{{")?;
+                let mut contents = contents.iter().peekable();
+                while let Some(val) = contents.next() {
+                    if contents.peek().is_some() {
+                        write!(f, "{} ", val)?;
+                    } else {
+                        write!(f, "{}", val)?;
+                    }
+                }
+                write!(f, "}}")
+            }
             List(contents) => {
                 write!(f, "(")?;
                 let mut contents = contents.iter().peekable();

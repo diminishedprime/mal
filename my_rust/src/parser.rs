@@ -15,6 +15,17 @@ use nom::sequence::delimited;
 use nom::sequence::preceded;
 use nom::IResult;
 
+fn parse_map(i: &str) -> IResult<&str, AST> {
+    map(
+        delimited(
+            char('{'),
+            separated_list(whitespace, ast),
+            preceded(optional_whitespace, char('}')),
+        ),
+        AST::Map,
+    )(i)
+}
+
 fn list(i: &str) -> IResult<&str, AST> {
     map(
         delimited(
@@ -112,7 +123,7 @@ fn deref(i: &str) -> IResult<&str, AST> {
 }
 
 fn ast(i: &str) -> IResult<&str, AST> {
-    let expressions = alt((list, string, quoted_value, deref, symbol, double));
+    let expressions = alt((list, parse_map, string, quoted_value, deref, symbol, double));
     preceded(optional_whitespace, expressions)(i)
 }
 
