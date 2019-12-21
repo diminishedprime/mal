@@ -1,11 +1,6 @@
-use lisp_val::LispResult;
 
-pub fn print(result: &LispResult) -> () {
-    match result {
-        Ok(e) => println!("{}", e.val.pr_str(true)),
-        Err(e) => eprintln!("{}", e),
-    }
+
+pub fn print(a: &str) -> Result<(), String> {
+    println!("{}", a);
+    Ok(())
 }
-
-#[cfg(test)]
-mod tests {}

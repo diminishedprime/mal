@@ -1,5 +1,5 @@
 extern crate mal;
 
-fn main() {
-    mal::main();
+fn main() -> Result<(), String> {
+    mal::main()
 }

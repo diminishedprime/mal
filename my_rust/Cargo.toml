@@ -3,8 +3,7 @@
 name = "mal"
 version = "0.1.0"
 authors = ["Matt Hamrick <matthewjhamrick@gmail.com>"]
+edition = "2018"
 
 [dependencies]
-nom = "^4.0"
-im = "10.2"
-regex = "0.1"
+nom = "^5.0"

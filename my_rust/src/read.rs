@@ -1,22 +1,18 @@
-use lisp_val::LispError;
 use std::io;
 use std::io::Write;
+use std::process;
 
-pub fn read(prompt: &str) -> Result<String, LispError> {
+pub fn read(prompt: &str) -> Result<String, String> {
     print!("{}", prompt);
     io::stdout().flush().unwrap();
     let mut input = String::new();
-    if let Ok(_) = io::stdin().read_line(&mut input) {
+    if io::stdin().read_line(&mut input).is_ok() {
         // Input of empty string means C-D, empty input is a newline.
         if input == "" {
-            ::std::process::exit(0);
+            process::exit(0);
         }
         Ok(input)
     } else {
-        // What exactly can go wrong here?
-        Err(LispError::Default(String::from("Something went wrong")))
+        Err("could not read from stdin for some reason".to_string())
     }
 }
-
-#[cfg(test)]
-mod tests {}
