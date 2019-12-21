@@ -138,6 +138,12 @@ fn quasiquote(i: &str) -> IResult<&str, AST> {
     })(i)
 }
 
+fn unquote(i: &str) -> IResult<&str, AST> {
+    map(preceded(char('~'), ast), |ast| {
+        AST::List(vec![AST::Symbol(String::from("unquote")), ast])
+    })(i)
+}
+
 fn deref(i: &str) -> IResult<&str, AST> {
     map(preceded(char('@'), ast), |ast| {
         AST::List(vec![AST::Symbol(String::from("deref")), ast])
@@ -152,7 +158,7 @@ fn keyword(i: &str) -> IResult<&str, AST> {
 
 fn ast(i: &str) -> IResult<&str, AST> {
     let expressions = alt((
-        list, vector, parse_map, keyword, string, quasiquote, quote, deref, symbol, double,
+        list, vector, parse_map, keyword, string, unquote, quasiquote, quote, deref, symbol, double,
     ));
     preceded(optional_whitespace, expressions)(i)
 }
