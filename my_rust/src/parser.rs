@@ -2,6 +2,7 @@ use crate::ast::AST;
 use nom::branch::alt;
 use nom::bytes::complete::is_a;
 use nom::bytes::complete::is_not;
+use nom::bytes::complete::tag;
 use nom::character::complete::alpha1;
 use nom::character::complete::alphanumeric1;
 use nom::character::complete::char;
@@ -138,6 +139,12 @@ fn quasiquote(i: &str) -> IResult<&str, AST> {
     })(i)
 }
 
+fn splice_unquote(i: &str) -> IResult<&str, AST> {
+    map(preceded(tag("~@"), ast), |ast| {
+        AST::List(vec![AST::Symbol(String::from("splice-unquote")), ast])
+    })(i)
+}
+
 fn unquote(i: &str) -> IResult<&str, AST> {
     map(preceded(char('~'), ast), |ast| {
         AST::List(vec![AST::Symbol(String::from("unquote")), ast])
@@ -151,14 +158,25 @@ fn deref(i: &str) -> IResult<&str, AST> {
 }
 
 fn keyword(i: &str) -> IResult<&str, AST> {
-    map(preceded(char(':'), alpha1), |s: &str| {
+    map(preceded(char(':'), alphanumeric1), |s: &str| {
         AST::Keyword(s.to_string())
     })(i)
 }
 
 fn ast(i: &str) -> IResult<&str, AST> {
     let expressions = alt((
-        list, vector, parse_map, keyword, string, unquote, quasiquote, quote, deref, symbol, double,
+        list,
+        vector,
+        parse_map,
+        keyword,
+        string,
+        splice_unquote,
+        unquote,
+        quasiquote,
+        quote,
+        deref,
+        symbol,
+        double,
     ));
     preceded(optional_whitespace, expressions)(i)
 }
