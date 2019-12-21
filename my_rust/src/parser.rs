@@ -105,8 +105,14 @@ fn quoted_value(i: &str) -> IResult<&str, AST> {
     })(i)
 }
 
+fn deref(i: &str) -> IResult<&str, AST> {
+    map(preceded(char('@'), ast), |ast| {
+        AST::List(vec![AST::Symbol(String::from("deref")), ast])
+    })(i)
+}
+
 fn ast(i: &str) -> IResult<&str, AST> {
-    let expressions = alt((list, string, quoted_value, symbol, double));
+    let expressions = alt((list, string, quoted_value, deref, symbol, double));
     preceded(optional_whitespace, expressions)(i)
 }
 
