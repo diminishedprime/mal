@@ -14,6 +14,7 @@ use nom::multi::fold_many0;
 use nom::multi::many0;
 use nom::multi::separated_list;
 use nom::sequence::delimited;
+use nom::sequence::pair;
 use nom::sequence::preceded;
 use nom::IResult;
 
@@ -163,11 +164,18 @@ fn keyword(i: &str) -> IResult<&str, AST> {
     })(i)
 }
 
+fn with_meta(i: &str) -> IResult<&str, AST> {
+    map(preceded(char('^'), pair(parse_map, ast)), |(m, a)| {
+        AST::List(vec![AST::Symbol(String::from("with-meta")), a, m])
+    })(i)
+}
+
 fn ast(i: &str) -> IResult<&str, AST> {
     let expressions = alt((
         list,
         vector,
         parse_map,
+        with_meta,
         keyword,
         string,
         splice_unquote,
@@ -190,7 +198,9 @@ pub fn parse(input: &str) -> Result<AST, String> {
 mod tests {
     use super::AST::Double;
     use super::AST::List;
+    use super::AST::Map;
     use super::AST::Symbol;
+    use super::AST::Vector;
     use super::*;
 
     #[test]
@@ -239,6 +249,19 @@ mod tests {
     fn parse_list_weird_whitespace() {
         let actual = parse(" (  ,1.23 ,,, ,1.23,,, )   ").unwrap();
         assert_eq!(actual, List(vec![Double(1.23), Double(1.23)]));
+    }
+
+    #[test]
+    fn parse_with_meta() {
+        let actual = parse("^{1 2} [3 4]").unwrap();
+        assert_eq!(
+            actual,
+            List(vec![
+                Symbol(String::from("with-meta")),
+                Vector(vec![Double(3.0), Double(4.0)]),
+                Map(vec![Double(1.0), Double(2.0)]),
+            ])
+        );
     }
 
 }
