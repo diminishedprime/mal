@@ -126,9 +126,15 @@ fn whitespace(i: &str) -> IResult<&str, &str> {
     is_a(" ,")(i)
 }
 
-fn quoted_value(i: &str) -> IResult<&str, AST> {
+fn quote(i: &str) -> IResult<&str, AST> {
     map(preceded(char('\''), ast), |ast| {
         AST::List(vec![AST::Symbol(String::from("quote")), ast])
+    })(i)
+}
+
+fn quasiquote(i: &str) -> IResult<&str, AST> {
+    map(preceded(char('`'), ast), |ast| {
+        AST::List(vec![AST::Symbol(String::from("quasiquote")), ast])
     })(i)
 }
 
@@ -146,15 +152,7 @@ fn keyword(i: &str) -> IResult<&str, AST> {
 
 fn ast(i: &str) -> IResult<&str, AST> {
     let expressions = alt((
-        list,
-        vector,
-        parse_map,
-        keyword,
-        string,
-        quoted_value,
-        deref,
-        symbol,
-        double,
+        list, vector, parse_map, keyword, string, quasiquote, quote, deref, symbol, double,
     ));
     preceded(optional_whitespace, expressions)(i)
 }
