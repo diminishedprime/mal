@@ -4,6 +4,7 @@ use std::fmt::Display;
 #[derive(Clone, PartialEq, Debug)]
 pub enum AST {
     List(Vec<AST>),
+    Vector(Vec<AST>),
     Map(Vec<AST>),
     Symbol(String),
     Keyword(String),
@@ -20,11 +21,24 @@ impl Display for AST {
         use AST::List;
         use AST::Map;
         use AST::Symbol;
+        use AST::Vector;
         match self {
             Double(a) => write!(f, "{}", a),
             Symbol(a) => write!(f, "{}", a),
             LString(a) => write!(f, r#""{}""#, a),
             Keyword(a) => write!(f, ":{}", a),
+            Vector(contents) => {
+                write!(f, "[")?;
+                let mut contents = contents.iter().peekable();
+                while let Some(val) = contents.next() {
+                    if contents.peek().is_some() {
+                        write!(f, "{} ", val)?;
+                    } else {
+                        write!(f, "{}", val)?;
+                    }
+                }
+                write!(f, "]")
+            }
             Map(contents) => {
                 write!(f, "{{")?;
                 let mut contents = contents.iter().peekable();

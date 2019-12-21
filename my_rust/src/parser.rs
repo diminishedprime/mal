@@ -3,17 +3,29 @@ use nom::branch::alt;
 use nom::bytes::complete::is_a;
 use nom::bytes::complete::is_not;
 use nom::character::complete::alpha1;
-use nom::character::complete::alphanumeric0;
+use nom::character::complete::alphanumeric1;
 use nom::character::complete::char;
 use nom::combinator::map;
 use nom::combinator::opt;
 use nom::combinator::value;
 use nom::combinator::verify;
 use nom::multi::fold_many0;
+use nom::multi::many0;
 use nom::multi::separated_list;
 use nom::sequence::delimited;
 use nom::sequence::preceded;
 use nom::IResult;
+
+fn vector(i: &str) -> IResult<&str, AST> {
+    map(
+        delimited(
+            char('['),
+            separated_list(whitespace, ast),
+            preceded(optional_whitespace, char(']')),
+        ),
+        AST::Vector,
+    )(i)
+}
 
 fn parse_map(i: &str) -> IResult<&str, AST> {
     map(
@@ -37,12 +49,16 @@ fn list(i: &str) -> IResult<&str, AST> {
     )(i)
 }
 
+fn symbol_char(i: &str) -> IResult<&str, &str> {
+    alt((is_a("+*-?"), alphanumeric1))(i)
+}
+
 fn symbol(i: &str) -> IResult<&str, AST> {
     let (remaining, first_bits) = alt((alpha1, is_a("+*-?")))(i)?;
-    map(alphanumeric0, move |rest: &str| {
+    map(many0(symbol_char), move |rest: Vec<&str>| {
         let mut s = String::new();
         s.push_str(&first_bits);
-        s.push_str(&rest);
+        rest.iter().for_each(|r| s.push_str(&r));
         AST::Symbol(s)
     })(&remaining)
 }
@@ -131,6 +147,7 @@ fn keyword(i: &str) -> IResult<&str, AST> {
 fn ast(i: &str) -> IResult<&str, AST> {
     let expressions = alt((
         list,
+        vector,
         parse_map,
         keyword,
         string,
@@ -158,6 +175,12 @@ mod tests {
     fn parse_symbol() {
         let actual = parse("+").unwrap();
         assert_eq!(actual, Symbol("+".to_string()));
+    }
+
+    #[test]
+    fn parse_symbol_mid_special() {
+        let actual = parse("abc-def").unwrap();
+        assert_eq!(actual, Symbol("abc-def".to_string()));
     }
 
     #[test]
