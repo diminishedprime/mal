@@ -99,8 +99,14 @@ fn whitespace(i: &str) -> IResult<&str, &str> {
     is_a(" ,")(i)
 }
 
+fn quoted_value(i: &str) -> IResult<&str, AST> {
+    map(preceded(char('\''), ast), |ast| {
+        AST::List(vec![AST::Symbol(String::from("quote")), ast])
+    })(i)
+}
+
 fn ast(i: &str) -> IResult<&str, AST> {
-    let expressions = alt((list, string, symbol, double));
+    let expressions = alt((list, string, quoted_value, symbol, double));
     preceded(optional_whitespace, expressions)(i)
 }
 
@@ -132,6 +138,12 @@ mod tests {
     fn parse_empty_list() {
         let actual = parse("( ) ").unwrap();
         assert_eq!(actual, List(vec![]));
+    }
+
+    #[test]
+    fn parse_quote_1() {
+        let actual = parse("'1").unwrap();
+        assert_eq!(actual, List(vec![Symbol("quote".to_string()), Double(1.0)]));
     }
 
     #[test]
