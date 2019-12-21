@@ -6,15 +6,11 @@ pub mod parser;
 pub mod print;
 pub mod read;
 
-fn eval_loop() -> Result<(), String> {
-    let read_val = read::read("user> ")?;
-    let parsed = parser::parse(&read_val)?;
-    let _evaled = eval::eval(parsed)?;
-    Ok(())
-}
-
-pub fn main() -> Result<(), String> {
+pub fn repl() -> Result<(), String> {
     loop {
-        eval_loop()?;
+        read::read("user> ")
+            .and_then(|read_val| parser::parse(&read_val))
+            .and_then(eval::eval)
+            .and_then(print::print)?;
     }
 }
