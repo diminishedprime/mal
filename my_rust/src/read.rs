@@ -11,7 +11,7 @@ pub fn read(prompt: &str) -> Result<String, String> {
         if input == "" {
             process::exit(0);
         }
-        Ok(input)
+        Ok(input.trim().to_string())
     } else {
         Err("could not read from stdin for some reason".to_string())
     }

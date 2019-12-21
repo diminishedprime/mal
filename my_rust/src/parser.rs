@@ -6,9 +6,10 @@ use nom::bytes::complete::tag;
 use nom::character::complete::alpha1;
 use nom::character::complete::alphanumeric1;
 use nom::character::complete::char;
+use nom::character::complete::one_of;
 use nom::combinator::map;
+use nom::combinator::not;
 use nom::combinator::opt;
-use nom::combinator::peek;
 use nom::combinator::value;
 use nom::combinator::verify;
 use nom::multi::fold_many0;
@@ -56,11 +57,11 @@ fn list(i: &str) -> IResult<&str, AST> {
 // whitespace...???
 // TODO - I think I need to use peek here.
 fn special_symbol(i: &str) -> IResult<&str, AST> {
-    map
-        pair(alt((char('-'), char('+'))), peek(whitespace))),
-        |c: (char, _)| {
+    map(
+        pair(is_a("+*/-"), not(one_of("0123456789"))),
+        |(c, _): (&str, _)| {
             let mut s = String::new();
-            s.push(c.0);
+            s.push_str(c);
             AST::Symbol(s)
         },
     )(i)
@@ -223,6 +224,12 @@ mod tests {
     fn parse_symbol() {
         let actual = parse("+").unwrap();
         assert_eq!(actual, Symbol("+".to_string()));
+    }
+
+    #[test]
+    fn parse_exp() {
+        let actual = parse("**").unwrap();
+        assert_eq!(actual, Symbol("**".to_string()));
     }
 
     #[test]
