@@ -7,7 +7,10 @@ use mal::read;
 fn main() -> Result<(), String> {
     loop {
         let read_value = read::read("user> ")?;
-        let parsed_value = parser::parse(&read_value)?;
-        print::print(&parsed_value)?;
+        let parsed_value = parser::parse(&read_value);
+        match parsed_value {
+            Ok(p) => print::print(&p)?,
+            Err(_) => print::print("frown")?,
+        };
     }
 }
