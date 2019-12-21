@@ -1,9 +1,10 @@
 extern crate nom;
 
+pub mod ast;
+pub mod eval;
 pub mod parser;
 pub mod print;
 pub mod read;
-pub mod eval;
 
 fn eval_loop() -> Result<(), String> {
     let read_val = read::read("user> ")?;
@@ -12,7 +13,7 @@ fn eval_loop() -> Result<(), String> {
     Ok(())
 }
 
-pub fn main() ->Result<(), String> {
+pub fn main() -> Result<(), String> {
     loop {
         eval_loop()?;
     }

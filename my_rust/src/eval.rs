@@ -1,3 +1,5 @@
-pub fn eval(program: &str) -> Result<&str, String> {
+use crate::ast::AST;
+
+pub fn eval(program: AST) -> Result<AST, String> {
     Ok(program)
 }
