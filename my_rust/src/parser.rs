@@ -8,6 +8,7 @@ use nom::character::complete::alphanumeric1;
 use nom::character::complete::char;
 use nom::combinator::map;
 use nom::combinator::opt;
+use nom::combinator::peek;
 use nom::combinator::value;
 use nom::combinator::verify;
 use nom::multi::fold_many0;
@@ -51,12 +52,26 @@ fn list(i: &str) -> IResult<&str, AST> {
     )(i)
 }
 
+// TODO - I need this to check that its followed by whitespace, but I can't consume the
+// whitespace...???
+// TODO - I think I need to use peek here.
+fn special_symbol(i: &str) -> IResult<&str, AST> {
+    map
+        pair(alt((char('-'), char('+'))), peek(whitespace))),
+        |c: (char, _)| {
+            let mut s = String::new();
+            s.push(c.0);
+            AST::Symbol(s)
+        },
+    )(i)
+}
+
 fn symbol_char(i: &str) -> IResult<&str, &str> {
     alt((is_a("+*-?"), alphanumeric1))(i)
 }
 
 fn symbol(i: &str) -> IResult<&str, AST> {
-    let (remaining, first_bits) = alt((alpha1, is_a("+*-?")))(i)?;
+    let (remaining, first_bits) = alt((alpha1, is_a("+*-?/")))(i)?;
     map(many0(symbol_char), move |rest: Vec<&str>| {
         let mut s = String::new();
         s.push_str(&first_bits);
@@ -183,8 +198,9 @@ fn ast(i: &str) -> IResult<&str, AST> {
         quasiquote,
         quote,
         deref,
-        symbol,
+        special_symbol,
         double,
+        symbol,
     ));
     preceded(optional_whitespace, expressions)(i)
 }
@@ -249,6 +265,12 @@ mod tests {
     fn parse_list_weird_whitespace() {
         let actual = parse(" (  ,1.23 ,,, ,1.23,,, )   ").unwrap();
         assert_eq!(actual, List(vec![Double(1.23), Double(1.23)]));
+    }
+
+    #[test]
+    fn parse_negative_number() {
+        let actual = parse("-3").unwrap();
+        assert_eq!(actual, Double(-3.0));
     }
 
     #[test]
