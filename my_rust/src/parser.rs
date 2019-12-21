@@ -122,8 +122,23 @@ fn deref(i: &str) -> IResult<&str, AST> {
     })(i)
 }
 
+fn keyword(i: &str) -> IResult<&str, AST> {
+    map(preceded(char(':'), alpha1), |s: &str| {
+        AST::Keyword(s.to_string())
+    })(i)
+}
+
 fn ast(i: &str) -> IResult<&str, AST> {
-    let expressions = alt((list, parse_map, string, quoted_value, deref, symbol, double));
+    let expressions = alt((
+        list,
+        parse_map,
+        keyword,
+        string,
+        quoted_value,
+        deref,
+        symbol,
+        double,
+    ));
     preceded(optional_whitespace, expressions)(i)
 }
 

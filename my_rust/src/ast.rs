@@ -6,6 +6,7 @@ pub enum AST {
     List(Vec<AST>),
     Map(Vec<AST>),
     Symbol(String),
+    Keyword(String),
     Double(f64),
     LString(String),
     // Int(i64),
@@ -14,6 +15,7 @@ pub enum AST {
 impl Display for AST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use AST::Double;
+        use AST::Keyword;
         use AST::LString;
         use AST::List;
         use AST::Map;
@@ -22,6 +24,7 @@ impl Display for AST {
             Double(a) => write!(f, "{}", a),
             Symbol(a) => write!(f, "{}", a),
             LString(a) => write!(f, r#""{}""#, a),
+            Keyword(a) => write!(f, ":{}", a),
             Map(contents) => {
                 write!(f, "{{")?;
                 let mut contents = contents.iter().peekable();
@@ -53,6 +56,7 @@ impl Display for AST {
 #[cfg(test)]
 mod tests {
     use super::AST::Double;
+    use super::AST::Keyword;
     use super::AST::List;
     use super::AST::Symbol;
 
@@ -72,6 +76,12 @@ mod tests {
     fn display_list() {
         let actual = List(vec![Symbol(String::from("abc")), Double(1.23)]);
         assert_eq!(format!("{}", actual), String::from("(abc 1.23)"));
+    }
+
+    #[test]
+    fn display_keyword() {
+        let actual = Keyword(String::from("abc"));
+        assert_eq!(format!("{}", actual), String::from(":abc"));
     }
 
 }
