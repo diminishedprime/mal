@@ -8,9 +8,12 @@ pub mod read;
 
 pub fn repl() -> Result<(), String> {
     loop {
-        read::read("user> ")
+        let loop_result = read::read("user> ")
             .and_then(|read_val| parser::parse(&read_val))
             .and_then(eval::eval)
-            .and_then(print::print)?;
+            .and_then(print::print);
+        if let Err(e) = loop_result {
+            print::print(e)?;
+        }
     }
 }
