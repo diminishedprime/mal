@@ -16,7 +16,7 @@ use AST::Vector;
 type SymbolVal = String;
 
 #[derive(Clone)]
-pub struct ClosureVal(Rc<dyn Fn(Box<dyn Iterator<Item = AST>>) -> Result<AST, String>>);
+pub struct ClosureVal(pub Rc<dyn Fn(Box<dyn Iterator<Item = AST>>) -> Result<AST, String>>);
 
 #[derive(Clone, PartialEq)]
 pub enum AST {
@@ -32,7 +32,7 @@ pub enum AST {
 }
 
 pub struct Env {
-    functions: HashMap<SymbolVal, ClosureVal>,
+    pub functions: HashMap<SymbolVal, ClosureVal>,
 }
 
 impl PartialEq for ClosureVal {
@@ -99,7 +99,68 @@ impl Display for AST {
 impl Env {
     pub fn new() -> Self {
         Env {
-            functions: hashmap![],
+            functions: hashmap! {
+                String::from("+") => ClosureVal(Rc::new(|a| {
+                    a.fold(Ok(Double(0.0)), |acc, arg| {
+                        let acc = acc?;
+                        if let (Double(acc), Double(arg)) = (acc,&arg) {
+                            Ok(Double(acc + arg))
+                        } else {
+                            Err(format!("Arg: {} was not a number", arg))
+                        }
+                    })
+                })),
+                String::from("*") => ClosureVal(Rc::new(|a| {
+                    a.fold(Ok(Double(1.0)), |acc, arg| {
+                        let acc = acc?;
+                        if let (Double(acc), Double(arg)) = (acc,&arg) {
+                            Ok(Double(acc * arg))
+                        } else {
+                            Err(format!("Arg: {} was not a number", arg))
+                        }
+                    })
+                })),
+                String::from("/") => ClosureVal(Rc::new(|a| {
+                    let mut a = a.peekable();
+                    let first = a.next().ok_or(String::from("- requires at least 1 argument"))?;
+                    if let Double(d) = first {
+                        if a.peek().is_none() {
+                            Ok(Double(1.0/d))
+                        } else {
+                            a.fold(Ok(first), |acc, arg| {
+                                let acc = acc?;
+                                if let (Double(acc), Double(arg)) = (acc,&arg) {
+                                    Ok(Double(acc / arg))
+                                } else {
+                                    Err(format!("Arg: {} was not a number", arg))
+                                }
+                            })
+                        }
+                    } else {
+                        Err(format!("Arg: {} was not a number", first))
+                    }
+                })),
+                String::from("-") => ClosureVal(Rc::new(|a| {
+                    let mut a = a.peekable();
+                    let first = a.next().ok_or(String::from("- requires at least 1 argument"))?;
+                    if let Double(d) = first {
+                        if a.peek().is_none() {
+                            Ok(Double(-d))
+                        } else {
+                            a.fold(Ok(first), |acc, arg| {
+                                let acc = acc?;
+                                if let (Double(acc), Double(arg)) = (acc,&arg) {
+                                    Ok(Double(acc - arg))
+                                } else {
+                                    Err(format!("Arg: {} was not a number", arg))
+                                }
+                            })
+                        }
+                    } else {
+                        Err(format!("Arg: {} was not a number", first))
+                    }
+                }))
+            },
         }
     }
 }

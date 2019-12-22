@@ -18,58 +18,6 @@ fn split_fn_and_arg(program: Vec<AST>) -> Result<(AST, impl Iterator<Item = AST>
     })
 }
 
-fn apply(
-    env: &mut Env,
-    args: impl Iterator<Item = AST>,
-    f: impl Fn(AST, AST) -> Result<AST, String>,
-) -> Result<AST, String> {
-    let mut evaled = args.map(|arg| eval(env, arg));
-    if let (Some(first), rest) = (evaled.next(), evaled) {
-        rest.fold(
-            first,
-            |acc: Result<AST, String>, evaled: Result<AST, String>| {
-                let acc = acc?;
-                let evaled = evaled?;
-                f(acc, evaled)
-            },
-        )
-    } else {
-        Err(String::from("must have at least one argument"))
-    }
-}
-
-fn add(a: AST, b: AST) -> Result<AST, String> {
-    if let (Double(a), Double(b)) = (a, b) {
-        Ok(Double(a + b))
-    } else {
-        Err(String::from("All arguments must be numbers"))
-    }
-}
-
-fn sub(a: AST, b: AST) -> Result<AST, String> {
-    if let (Double(a), Double(b)) = (a, b) {
-        Ok(Double(a - b))
-    } else {
-        Err(String::from("All arguments must be numbers"))
-    }
-}
-
-fn multiply(a: AST, b: AST) -> Result<AST, String> {
-    if let (Double(a), Double(b)) = (a, b) {
-        Ok(Double(a * b))
-    } else {
-        Err(String::from("All arguments must be numbers"))
-    }
-}
-
-fn divide(a: AST, b: AST) -> Result<AST, String> {
-    if let (Double(a), Double(b)) = (a, b) {
-        Ok(Double(a / b))
-    } else {
-        Err(String::from("All arguments must be numbers"))
-    }
-}
-
 pub fn eval(env: &mut Env, program: AST) -> Result<AST, String> {
     Ok(match program {
         d @ Double(_) => d,
@@ -90,14 +38,18 @@ pub fn eval(env: &mut Env, program: AST) -> Result<AST, String> {
                 List(vec![])
             } else {
                 let (first, rest) = split_fn_and_arg(l)?;
+                let rest = rest
+                    .map(|part| eval(env, part))
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter();
                 match first {
-                    Symbol(s) => match s.as_ref() {
-                        "+" => apply(env, rest, add)?,
-                        "-" => apply(env, rest, sub)?,
-                        "*" => apply(env, rest, multiply)?,
-                        "/" => apply(env, rest, divide)?,
-                        _ => return Err(String::from("not implemented")),
-                    },
+                    Symbol(s) => {
+                        let thing = env
+                            .functions
+                            .get(&s)
+                            .ok_or(format!("function: {} is not defined", s))?;
+                        thing.0(Box::new(rest))?
+                    }
                     _ => return Err(String::from("not implemented")),
                 }
             }
