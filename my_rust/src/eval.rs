@@ -1,4 +1,6 @@
+use crate::ast::Env;
 use crate::ast::AST;
+use AST::Closure;
 use AST::Double;
 use AST::Keyword;
 use AST::LString;
@@ -17,10 +19,11 @@ fn split_fn_and_arg(program: Vec<AST>) -> Result<(AST, impl Iterator<Item = AST>
 }
 
 fn apply(
+    env: &mut Env,
     args: impl Iterator<Item = AST>,
     f: impl Fn(AST, AST) -> Result<AST, String>,
 ) -> Result<AST, String> {
-    let mut evaled = args.map(eval);
+    let mut evaled = args.map(|arg| eval(env, arg));
     if let (Some(first), rest) = (evaled.next(), evaled) {
         rest.fold(
             first,
@@ -67,14 +70,21 @@ fn divide(a: AST, b: AST) -> Result<AST, String> {
     }
 }
 
-pub fn eval(program: AST) -> Result<AST, String> {
+pub fn eval(env: &mut Env, program: AST) -> Result<AST, String> {
     Ok(match program {
         d @ Double(_) => d,
         k @ Keyword(_) => k,
         s @ Symbol(_) => s,
         s @ LString(_) => s,
-        Map(m) => Map(m.into_iter().map(eval).collect::<Result<_, _>>()?),
-        Vector(v) => Vector(v.into_iter().map(eval).collect::<Result<_, _>>()?),
+        Map(m) => Map(m
+            .into_iter()
+            .map(|part| eval(env, part))
+            .collect::<Result<_, _>>()?),
+        Vector(v) => Vector(
+            v.into_iter()
+                .map(|part| eval(env, part))
+                .collect::<Result<_, _>>()?,
+        ),
         List(l) => {
             if l.len() == 0 {
                 List(vec![])
@@ -82,15 +92,16 @@ pub fn eval(program: AST) -> Result<AST, String> {
                 let (first, rest) = split_fn_and_arg(l)?;
                 match first {
                     Symbol(s) => match s.as_ref() {
-                        "+" => apply(rest, add)?,
-                        "-" => apply(rest, sub)?,
-                        "*" => apply(rest, multiply)?,
-                        "/" => apply(rest, divide)?,
+                        "+" => apply(env, rest, add)?,
+                        "-" => apply(env, rest, sub)?,
+                        "*" => apply(env, rest, multiply)?,
+                        "/" => apply(env, rest, divide)?,
                         _ => return Err(String::from("not implemented")),
                     },
                     _ => return Err(String::from("not implemented")),
                 }
             }
         }
+        Closure(_) => return Err(String::from("not implemented")),
     })
 }
