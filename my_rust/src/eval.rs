@@ -3,7 +3,9 @@ use AST::Double;
 use AST::Keyword;
 use AST::LString;
 use AST::List;
+use AST::Map;
 use AST::Symbol;
+use AST::Vector;
 
 fn split_fn_and_arg(program: Vec<AST>) -> Result<(AST, impl Iterator<Item = AST>), String> {
     let mut program_iter = program.into_iter();
@@ -71,9 +73,11 @@ pub fn eval(program: AST) -> Result<AST, String> {
         k @ Keyword(_) => k,
         s @ Symbol(_) => s,
         s @ LString(_) => s,
+        Map(m) => Map(m.into_iter().map(eval).collect::<Result<_, _>>()?),
+        Vector(v) => Vector(v.into_iter().map(eval).collect::<Result<_, _>>()?),
         List(l) => {
             if l.len() == 0 {
-                return Err(String::from("can't evaluate empty lists right now"));
+                List(vec![])
             } else {
                 let (first, rest) = split_fn_and_arg(l)?;
                 match first {
@@ -88,6 +92,5 @@ pub fn eval(program: AST) -> Result<AST, String> {
                 }
             }
         }
-        _ => return Err(String::from("not implemented")),
     })
 }
