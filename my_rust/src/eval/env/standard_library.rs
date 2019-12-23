@@ -1,12 +1,34 @@
 use crate::ast::list_of;
+use crate::ast::ClosureVal;
+use crate::ast::SymbolVal;
 use crate::ast::AST;
 use crate::ast::AST::Boolean;
+use crate::ast::AST::Closure;
 use crate::ast::AST::Double;
 use crate::eval::env::util;
 use crate::eval::env::Env;
 use crate::eval::eval;
 use core::cell::RefCell;
+use im::hashmap;
+use im::HashMap;
 use std::rc::Rc;
+
+pub fn with_standard_library() -> Vec<HashMap<SymbolVal, AST>> {
+    vec![hashmap! {
+        String::from("+") => Closure(ClosureVal(Rc::new(plus))),
+        String::from("*") => Closure(ClosureVal(Rc::new(multiply))),
+        String::from("/") => Closure(ClosureVal(Rc::new(divide))),
+        String::from("-") => Closure(ClosureVal(Rc::new(subtract))),
+        String::from("def!") => Closure(ClosureVal(Rc::new(define))),
+        String::from("let*") => Closure(ClosureVal(Rc::new(let_star))),
+        String::from("=") => Closure(ClosureVal(Rc::new(eq))),
+        String::from("list") => Closure(ClosureVal(Rc::new(list))),
+        String::from("list?") => Closure(ClosureVal(Rc::new(is_list))),
+        String::from("empty?") => Closure(ClosureVal(Rc::new(is_empty))),
+        String::from("count") => Closure(ClosureVal(Rc::new(count))),
+        String::from("do") => Closure(ClosureVal(Rc::new(doo))),
+    }]
+}
 
 pub fn plus(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
     Ok(Double(

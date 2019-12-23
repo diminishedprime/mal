@@ -7,11 +7,9 @@ pub mod print;
 pub mod read;
 
 use eval::env;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 pub fn repl() -> Result<(), String> {
-    let env = Rc::new(RefCell::new(env::Env::new()));
+    let env = env::Env::new();
     loop {
         let loop_result = read::read("user> ")
             .and_then(|read_val| parser::parse(&read_val))

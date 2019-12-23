@@ -228,7 +228,7 @@ mod tests {
     #[test]
     fn parse_env_symbol_names() {
         let env = Env::new();
-        let map = &env.envs[0];
+        let map = &env.borrow().envs[0];
         map.keys().for_each(|key| {
             let actual = parse(key).unwrap();
             assert_eq!(actual, Symbol(key.to_string()))
