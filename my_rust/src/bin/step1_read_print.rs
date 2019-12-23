@@ -4,7 +4,9 @@ use mal::parser;
 use mal::print;
 use mal::read;
 
-fn main() -> Result<(), String> {
+use mal::eval::EvalResult;
+
+fn main() -> EvalResult<()> {
     loop {
         let read_value = read::read("user> ")?;
         let parsed_value = parser::parse(&read_value);

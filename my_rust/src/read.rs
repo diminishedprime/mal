@@ -1,8 +1,9 @@
+use crate::eval::EvalResult;
 use std::io;
 use std::io::Write;
 use std::process;
 
-pub fn read(prompt: &str) -> Result<String, String> {
+pub fn read(prompt: &str) -> EvalResult<String> {
     print!("{}", prompt);
     io::stdout().flush().unwrap();
     let mut input = String::new();

@@ -8,6 +8,7 @@ use crate::ast::AST::Double;
 use crate::eval::env::util;
 use crate::eval::env::Env;
 use crate::eval::eval;
+use crate::eval::EvalResult;
 use core::cell::RefCell;
 use im::hashmap;
 use im::HashMap;
@@ -30,30 +31,30 @@ pub fn with_standard_library() -> Vec<HashMap<SymbolVal, AST>> {
     }]
 }
 
-pub fn plus(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+pub fn plus(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     Ok(Double(
         args.map(AST::unwrap_double)
-            .collect::<Result<Vec<_>, String>>()?
+            .collect::<EvalResult<Vec<_>>>()?
             .into_iter()
             .fold(0.0, |acc, arg| acc + arg),
     ))
 }
 
-pub fn multiply(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+pub fn multiply(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     Ok(Double(
         args.map(AST::unwrap_double)
-            .collect::<Result<Vec<_>, String>>()?
+            .collect::<EvalResult<Vec<_>>>()?
             .into_iter()
             .fold(1.0, |acc, arg| acc * arg),
     ))
 }
 
-pub fn divide(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+pub fn divide(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let (first, rest) = util::one_or_more_args("/", args)?;
     let first = first.unwrap_double()?;
     let mut rest = rest
         .map(AST::unwrap_double)
-        .collect::<Result<Vec<_>, String>>()?
+        .collect::<EvalResult<Vec<_>>>()?
         .into_iter()
         .peekable();
     if rest.peek().is_none() {
@@ -63,12 +64,12 @@ pub fn divide(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AS
     }
 }
 
-pub fn subtract(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+pub fn subtract(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let (first, rest) = util::one_or_more_args("-", args)?;
     let first = first.unwrap_double()?;
     let mut rest = rest
         .map(AST::unwrap_double)
-        .collect::<Result<Vec<_>, String>>()?
+        .collect::<EvalResult<Vec<_>>>()?
         .into_iter()
         .peekable();
     if rest.peek().is_none() {
@@ -78,7 +79,7 @@ pub fn subtract(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<
     }
 }
 
-pub fn define(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+pub fn define(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let (first, second) = util::two_args("def!", args)?;
     let first = first.unwrap_symbol()?;
     let second = eval(env.clone(), second)?;
@@ -89,7 +90,7 @@ pub fn let_star_helper(
     env: Rc<RefCell<Env>>,
     mut bindings: impl Iterator<Item = AST>,
     exprs: impl Iterator<Item = AST>,
-) -> Result<AST, String> {
+) -> EvalResult<AST> {
     loop {
         let name = bindings.next();
         let binding = bindings.next();
@@ -114,7 +115,7 @@ pub fn let_star_helper(
     })
 }
 
-pub fn let_star(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+pub fn let_star(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let (bindings, exprs) = util::one_or_more_args("let*", args)?;
     let bindings = bindings.unwrap_list_like()?.into_iter();
     env.borrow_mut().new_local();
@@ -123,7 +124,7 @@ pub fn let_star(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Resul
     result
 }
 
-pub fn eq(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+pub fn eq(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let (first, rest) = util::one_or_more_args("=", args)?;
     Ok(Boolean(rest.fold(true, |acc, next: AST| {
         if acc == false {
@@ -134,28 +135,28 @@ pub fn eq(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, S
     })))
 }
 
-pub fn list(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+pub fn list(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     Ok(list_of(args.collect::<Vec<_>>()))
 }
 
-pub fn is_list(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+pub fn is_list(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let arg = util::one_arg("list?", args)?;
     Ok(Boolean(arg.is_list()))
 }
 
-pub fn is_empty(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+pub fn is_empty(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let arg = util::one_arg("empty?", args)?;
     let contents = arg.unwrap_list_like()?;
     Ok(Boolean(contents.is_empty()))
 }
 
-pub fn count(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+pub fn count(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let arg = util::one_arg("empty?", args)?;
     let arg = arg.unwrap_list_like()?;
     Ok(Double(arg.len() as f64))
 }
 
-pub fn doo(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+pub fn doo(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     args.fold(Ok(AST::Nil), |last, expr| {
         last?;
         eval(env.clone(), expr)

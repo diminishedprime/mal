@@ -1,5 +1,7 @@
 extern crate mal;
 
-fn main() -> Result<(), String> {
+use mal::eval::EvalResult;
+
+fn main() -> EvalResult<()> {
     mal::repl()
 }

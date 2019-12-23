@@ -3,6 +3,7 @@ mod util;
 
 use crate::ast::SymbolVal;
 use crate::ast::AST;
+use crate::eval::EvalResult;
 use im::hashmap;
 use im::HashMap;
 use std::cell::RefCell;
@@ -19,7 +20,7 @@ impl Env {
         }))
     }
 
-    pub fn get(&self, key: &SymbolVal) -> Result<AST, String> {
+    pub fn get(&self, key: &SymbolVal) -> EvalResult<AST> {
         let mut envs = self.envs.iter().rev();
         while let Some(env) = envs.next() {
             match env.get(key) {
@@ -42,7 +43,7 @@ impl Env {
         self.envs.remove(self.envs.len() - 1);
     }
 
-    pub fn set(&mut self, key: SymbolVal, value: AST) -> Result<AST, String> {
+    pub fn set(&mut self, key: SymbolVal, value: AST) -> EvalResult<AST> {
         let len = self.envs.len();
         // TODO - is there a way to avoid this unsafe?
         unsafe {

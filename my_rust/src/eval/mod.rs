@@ -12,7 +12,9 @@ use AST::Closure;
 use AST::Map;
 use AST::Symbol;
 
-fn split_fn_and_arg(program: Vec<AST>) -> Result<(AST, impl Iterator<Item = AST>), String> {
+pub type EvalResult<T> = Result<T, String>;
+
+fn split_fn_and_arg(program: Vec<AST>) -> EvalResult<(AST, impl Iterator<Item = AST>)> {
     let mut program_iter = program.into_iter();
     Ok(if let Some(first) = program_iter.next() {
         (first, program_iter)
@@ -21,7 +23,7 @@ fn split_fn_and_arg(program: Vec<AST>) -> Result<(AST, impl Iterator<Item = AST>
     })
 }
 
-pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> Result<AST, String> {
+pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
     Ok(match program {
         Symbol(s) => return env.borrow().get(&s),
         Map(m) => Map(m

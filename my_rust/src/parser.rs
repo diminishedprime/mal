@@ -1,6 +1,7 @@
 use crate::ast::list_of;
 use crate::ast::vec_of;
 use crate::ast::AST;
+use crate::eval::EvalResult;
 use nom::branch::alt;
 use nom::bytes::complete::is_a;
 use nom::bytes::complete::is_not;
@@ -212,7 +213,7 @@ fn ast(i: &str) -> IResult<&str, AST> {
     preceded(optional_whitespace, expressions)(i)
 }
 
-pub fn parse(input: &str) -> Result<AST, String> {
+pub fn parse(input: &str) -> EvalResult<AST> {
     let (_remaining, parsed) = ast(input).map_err(|e| format!("{:?}", e))?;
     Ok(parsed)
 }

@@ -1,16 +1,17 @@
 use crate::ast::AST;
+use crate::eval::EvalResult;
 
 pub fn one_or_more_args(
     fn_name: &str,
     mut args: impl Iterator<Item = AST>,
-) -> Result<(AST, impl Iterator<Item = AST>), String> {
+) -> EvalResult<(AST, impl Iterator<Item = AST>)> {
     let first = args
         .next()
         .ok_or(format!("{} requires at least one argument.", fn_name))?;
     Ok((first, args))
 }
 
-pub fn two_args(fn_name: &str, mut args: impl Iterator<Item = AST>) -> Result<(AST, AST), String> {
+pub fn two_args(fn_name: &str, mut args: impl Iterator<Item = AST>) -> EvalResult<(AST, AST)> {
     let first = args.next();
     let second = args.next();
     let third = args.next();
@@ -22,7 +23,7 @@ pub fn two_args(fn_name: &str, mut args: impl Iterator<Item = AST>) -> Result<(A
     }
 }
 
-pub fn one_arg(fn_name: &str, mut args: impl Iterator<Item = AST>) -> Result<AST, String> {
+pub fn one_arg(fn_name: &str, mut args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let first = args.next();
     let second = args.next();
     match (first, second) {

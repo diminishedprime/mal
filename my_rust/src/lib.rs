@@ -7,8 +7,9 @@ pub mod print;
 pub mod read;
 
 use eval::env;
+use eval::EvalResult;
 
-pub fn repl() -> Result<(), String> {
+pub fn repl() -> EvalResult<()> {
     let env = env::Env::new();
     loop {
         let loop_result = read::read("user> ")

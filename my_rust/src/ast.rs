@@ -1,4 +1,5 @@
 use crate::eval::env::Env;
+use crate::eval::EvalResult;
 use core::fmt::Debug;
 use std::cell::RefCell;
 use std::fmt;
@@ -18,7 +19,7 @@ pub type SymbolVal = String;
 
 #[derive(Clone)]
 pub struct ClosureVal(
-    pub Rc<dyn Fn(Rc<RefCell<Env>>, Box<dyn Iterator<Item = AST>>) -> Result<AST, String>>,
+    pub Rc<dyn Fn(Rc<RefCell<Env>>, Box<dyn Iterator<Item = AST>>) -> EvalResult<AST>>,
 );
 
 #[derive(Clone)]
@@ -50,21 +51,21 @@ pub fn vec_of(v: Vec<AST>) -> AST {
 }
 
 impl AST {
-    pub fn unwrap_double(self) -> Result<f64, String> {
+    pub fn unwrap_double(self) -> EvalResult<f64> {
         match self {
             Double(d) => Ok(d),
             a => Err(format!("{} is not a double", a)),
         }
     }
 
-    pub fn unwrap_symbol(self) -> Result<String, String> {
+    pub fn unwrap_symbol(self) -> EvalResult<String> {
         match self {
             Symbol(s) => Ok(s),
             a => Err(format!("{} is not a symbol", a)),
         }
     }
 
-    pub fn unwrap_list(self) -> Result<Vec<AST>, String> {
+    pub fn unwrap_list(self) -> EvalResult<Vec<AST>> {
         match self {
             ListLike(s) => match s {
                 Listy::List(l) => Ok(l),
@@ -74,7 +75,7 @@ impl AST {
         }
     }
 
-    pub fn unwrap_list_like(self) -> Result<Vec<AST>, String> {
+    pub fn unwrap_list_like(self) -> EvalResult<Vec<AST>> {
         match self {
             ListLike(s) => Ok(match s {
                 Listy::List(l) | Listy::Vector(l) => l,
