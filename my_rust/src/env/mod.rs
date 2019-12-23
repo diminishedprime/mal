@@ -26,6 +26,7 @@ impl Env {
                 String::from("=") => Closure(ClosureVal(Rc::new(standard_library::eq))),
                 String::from("list") => Closure(ClosureVal(Rc::new(standard_library::list))),
                 String::from("list?") => Closure(ClosureVal(Rc::new(standard_library::is_list))),
+                String::from("empty?") => Closure(ClosureVal(Rc::new(standard_library::is_empty))),
             }],
         }
     }

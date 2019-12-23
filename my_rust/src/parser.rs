@@ -20,6 +20,7 @@ use nom::multi::separated_list;
 use nom::sequence::delimited;
 use nom::sequence::pair;
 use nom::sequence::preceded;
+use nom::sequence::terminated;
 use nom::IResult;
 
 fn vector(i: &str) -> IResult<&str, AST> {
@@ -60,8 +61,11 @@ fn list(i: &str) -> IResult<&str, AST> {
 // TODO - I think I need to use peek here.
 fn special_symbol(i: &str) -> IResult<&str, AST> {
     map(
-        pair(is_a("+*/-="), not(one_of("0123456789"))),
-        |(c, _): (&str, _)| {
+        alt((
+            terminated(is_a("+*/-="), not(one_of("0123456789"))),
+            tag("empty?"),
+        )),
+        |c: &str| {
             let mut s = String::new();
             s.push_str(c);
             AST::Symbol(s)
@@ -230,6 +234,12 @@ mod tests {
     fn parse_def_bang() {
         let actual = parse("def!").unwrap();
         assert_eq!(actual, Symbol("def!".to_string()));
+    }
+
+    #[test]
+    fn parse_empty_question() {
+        let actual = parse("empty?").unwrap();
+        assert_eq!(actual, Symbol("empty?".to_string()));
     }
 
     #[test]
