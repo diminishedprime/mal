@@ -78,4 +78,21 @@ mod tests {
         let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
         assert_eq!(actual, Double(6.0));
     }
+
+    #[test]
+    fn list_builtin() {
+        let program = parse("(list 1 2)").unwrap();
+        let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
+        assert_eq!(actual, List(vec![Double(1.0), Double(2.0)]));
+    }
+
+    #[test]
+    fn list_builtin_nested() {
+        let program = parse("(list 1 2 (list 3))").unwrap();
+        let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
+        assert_eq!(
+            actual,
+            List(vec![Double(1.0), Double(2.0), List(vec![Double(3.0)])])
+        );
+    }
 }

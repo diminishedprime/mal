@@ -7,7 +7,7 @@ use crate::ast::AST;
 use crate::ast::AST::Closure;
 use im::hashmap;
 use im::HashMap;
-use standard_library::{define, divide, eq, let_star, multiply, plus, subtract};
+use standard_library::{define, divide, eq, let_star, list, multiply, plus, subtract};
 use std::rc::Rc;
 
 pub struct Env {
@@ -25,6 +25,7 @@ impl Env {
                 String::from("def!") => Closure(ClosureVal(Rc::new(define))),
                 String::from("let*") => Closure(ClosureVal(Rc::new(let_star))),
                 String::from("=") => Closure(ClosureVal(Rc::new(eq))),
+                String::from("list") => Closure(ClosureVal(Rc::new(list))),
             }],
         }
     }
