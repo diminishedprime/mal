@@ -1,5 +1,5 @@
 use crate::ast::list_of;
-use crate::ast::Listy;
+use crate::ast::vec_of;
 use crate::ast::AST;
 use nom::branch::alt;
 use nom::bytes::complete::is_a;
@@ -29,7 +29,7 @@ fn vector(i: &str) -> IResult<&str, AST> {
             separated_list(whitespace, ast),
             preceded(optional_whitespace, char(']')),
         ),
-        |s| AST::ListLike(Listy::Vector(s)),
+        vec_of,
     )(i)
 }
 
@@ -51,7 +51,7 @@ fn list(i: &str) -> IResult<&str, AST> {
             separated_list(whitespace, ast),
             preceded(optional_whitespace, char(')')),
         ),
-        |s| AST::ListLike(Listy::List(s)),
+        list_of,
     )(i)
 }
 
@@ -216,11 +216,9 @@ pub fn parse(input: &str) -> Result<AST, String> {
 #[cfg(test)]
 mod tests {
     use super::AST::Double;
-    use super::AST::ListLike;
     use super::AST::Map;
     use super::AST::Symbol;
     use super::*;
-    use crate::ast::Listy;
 
     #[test]
     fn parse_symbol() {
@@ -255,7 +253,7 @@ mod tests {
     #[test]
     fn parse_empty_list() {
         let actual = parse("( ) ").unwrap();
-        assert_eq!(actual, ListLike(Listy::List(vec![])));
+        assert_eq!(actual, (list_of(vec![])));
     }
 
     #[test]
@@ -263,32 +261,26 @@ mod tests {
         let actual = parse("'1").unwrap();
         assert_eq!(
             actual,
-            ListLike(Listy::List(vec![Symbol("quote".to_string()), Double(1.0)]))
+            (list_of(vec![Symbol("quote".to_string()), Double(1.0)]))
         );
     }
 
     #[test]
     fn parse_one_item_list() {
         let actual = parse("(1.34)").unwrap();
-        assert_eq!(actual, ListLike(Listy::List(vec![Double(1.34)])));
+        assert_eq!(actual, (list_of(vec![Double(1.34)])));
     }
 
     #[test]
     fn parse_standard_list() {
         let actual = parse("(1.23 1.23)").unwrap();
-        assert_eq!(
-            actual,
-            ListLike(Listy::List(vec![Double(1.23), Double(1.23)]))
-        );
+        assert_eq!(actual, (list_of(vec![Double(1.23), Double(1.23)])));
     }
 
     #[test]
     fn parse_list_weird_whitespace() {
         let actual = parse(" (  ,1.23 ,,, ,1.23,,, )   ").unwrap();
-        assert_eq!(
-            actual,
-            ListLike(Listy::List(vec![Double(1.23), Double(1.23)]))
-        );
+        assert_eq!(actual, (list_of(vec![Double(1.23), Double(1.23)])));
     }
 
     #[test]
@@ -302,9 +294,9 @@ mod tests {
         let actual = parse("^{1 2} [3 4]").unwrap();
         assert_eq!(
             actual,
-            ListLike(Listy::List(vec![
+            (list_of(vec![
                 Symbol(String::from("with-meta")),
-                ListLike(Listy::Vector(vec![Double(3.0), Double(4.0)])),
+                (vec_of(vec![Double(3.0), Double(4.0)])),
                 Map(vec![Double(1.0), Double(2.0)]),
             ]))
         );

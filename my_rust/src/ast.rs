@@ -186,7 +186,7 @@ mod tests {
 
     #[test]
     fn display_list() {
-        let actual = ListLike(Listy::List(vec![Symbol(String::from("abc")), Double(1.23)]));
+        let actual = list_of(vec![Symbol(String::from("abc")), Double(1.23)]);
         assert_eq!(format!("{}", actual), String::from("(abc 1.23)"));
     }
 

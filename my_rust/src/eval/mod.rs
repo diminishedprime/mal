@@ -87,10 +87,7 @@ mod tests {
     fn list_builtin() {
         let program = parse("(list 1 2)").unwrap();
         let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
-        assert_eq!(
-            actual,
-            ListLike(Listy::List(vec![Double(1.0), Double(2.0)]))
-        );
+        assert_eq!(actual, list_of(vec![Double(1.0), Double(2.0)]));
     }
 
     #[test]
@@ -99,11 +96,7 @@ mod tests {
         let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
         assert_eq!(
             actual,
-            ListLike(Listy::List(vec![
-                Double(1.0),
-                Double(2.0),
-                ListLike(Listy::List(vec![Double(3.0)]))
-            ]))
+            list_of(vec![Double(1.0), Double(2.0), list_of(vec![Double(3.0)])])
         );
     }
 }
