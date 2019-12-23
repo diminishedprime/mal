@@ -44,6 +44,20 @@ impl AST {
             a => Err(format!("{} is not a double", a)),
         }
     }
+
+    pub fn unwrap_symbol(self) -> Result<String, String> {
+        match self {
+            Symbol(s) => Ok(s),
+            a => Err(format!("{} is not a symbol", a)),
+        }
+    }
+
+    pub fn unwrap_list_like(self) -> Result<Vec<AST>, String> {
+        match self {
+            List(s) | Vector(s) => Ok(s),
+            a => Err(format!("{} is not a List or Vector", a)),
+        }
+    }
 }
 
 impl PartialEq for ClosureVal {

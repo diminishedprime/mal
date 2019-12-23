@@ -38,17 +38,8 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> Result<AST, String> {
                     Symbol(s) => {
                         let thing = env.borrow().get(&s)?;
                         let evaled = match s.as_ref() {
-                            "def!" => rest
-                                .enumerate()
-                                .map(|(i, val)| match i {
-                                    0 => Ok(val),
-                                    1 => eval(env.clone(), val),
-                                    _ => Err(String::from("def! requires exactly 2 arguments")),
-                                })
-                                .collect::<Result<Vec<_>, String>>()?
-                                .into_iter(),
                             // TODO - this probably shouldn't be necessary to fix the types up.
-                            "let*" => rest.collect::<Vec<_>>().into_iter(),
+                            "let*" | "def!" => rest.collect::<Vec<_>>().into_iter(),
                             _ => rest
                                 .map(|part| eval(env.clone(), part))
                                 .collect::<Result<Vec<_>, _>>()?
