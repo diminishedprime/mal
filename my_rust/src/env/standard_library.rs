@@ -132,3 +132,10 @@ pub fn count(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST
     let arg = arg.unwrap_list_like()?;
     Ok(Double(arg.len() as f64))
 }
+
+pub fn doo(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+    args.fold(Ok(AST::Nil), |last, expr| {
+        last?;
+        eval(env.clone(), expr)
+    })
+}

@@ -223,6 +223,17 @@ mod tests {
     use super::AST::Map;
     use super::AST::Symbol;
     use super::*;
+    use crate::env::Env;
+
+    #[test]
+    fn parse_env_symbol_names() {
+        let env = Env::new();
+        let map = &env.envs[0];
+        map.keys().for_each(|key| {
+            let actual = parse(key).unwrap();
+            assert_eq!(actual, Symbol(key.to_string()))
+        });
+    }
 
     #[test]
     fn parse_symbol() {

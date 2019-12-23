@@ -76,6 +76,10 @@ mod tests {
         AST::Double(d)
     }
 
+    fn nil() -> AST {
+        AST::Nil
+    }
+
     #[test]
     fn def_bang() {
         let program = parse("(def! a 3)").unwrap();
@@ -116,5 +120,26 @@ mod tests {
         let program = parse("(empty? (list 1 2 3))").unwrap();
         let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
         assert_eq!(actual, m_false());
+    }
+
+    #[test]
+    fn do_empty() {
+        let program = parse("(do)").unwrap();
+        let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
+        assert_eq!(actual, nil());
+    }
+
+    #[test]
+    fn do_one_expr() {
+        let program = parse("(do (+ 1 1))").unwrap();
+        let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
+        assert_eq!(actual, m_double(2.0));
+    }
+
+    #[test]
+    fn do_with_def_expr() {
+        let program = parse("(do (def! a 1) a)").unwrap();
+        let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
+        assert_eq!(actual, m_double(1.0));
     }
 }

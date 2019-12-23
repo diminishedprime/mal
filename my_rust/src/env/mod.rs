@@ -28,6 +28,7 @@ impl Env {
                 String::from("list?") => Closure(ClosureVal(Rc::new(standard_library::is_list))),
                 String::from("empty?") => Closure(ClosureVal(Rc::new(standard_library::is_empty))),
                 String::from("count") => Closure(ClosureVal(Rc::new(standard_library::count))),
+                String::from("do") => Closure(ClosureVal(Rc::new(standard_library::doo))),
             }],
         }
     }
