@@ -3,7 +3,11 @@ use crate::ast::Env;
 use crate::ast::AST;
 use crate::ast::AST::Closure;
 use crate::ast::AST::Double;
+use crate::ast::AST::List;
 use crate::ast::AST::Symbol;
+use crate::ast::AST::Vector;
+use crate::eval::eval;
+use core::cell::RefCell;
 use im::hashmap;
 use std::rc::Rc;
 
@@ -101,14 +105,61 @@ fn define() -> AST {
     })))
 }
 
+fn eval_let_star(env: Rc<RefCell<Env>>, l: Vec<AST>, expr: Option<AST>) -> Result<AST, String> {
+    let mut l = l.into_iter();
+    // TODO - make a new function called new_local & add functions
+    // for setting to local_env instead of global.
+    env.borrow_mut().new_local();
+    let local_env = env.clone();
+    loop {
+        let name = l.next();
+        let binding = l.next();
+        match (name, binding) {
+            (None, None) => break,
+            (Some(Symbol(name)), Some(expr)) => {
+                let value = eval(local_env.clone(), expr)?;
+                local_env.borrow_mut().set(name.to_string(), value)?;
+            }
+            (Some(_), Some(_)) => return Err(String::from("let bindings must be symbols")),
+            (Some(_), None) => {
+                return Err(String::from(
+                    "let bindings must be an even number of forms.",
+                ))
+            }
+            (None, Some(_)) => panic!("this shouldn't be able to happen"),
+        }
+    }
+    let result = match expr {
+        Some(expr) => eval(local_env, expr),
+        None => Ok(AST::Nil),
+    };
+    env.borrow_mut().clear_local();
+    result
+}
+
+fn let_star() -> AST {
+    Closure(ClosureVal(Rc::new(|env, mut a| {
+        let bindings = a.next();
+        let expr = a.next();
+        match (bindings, expr) {
+            (Some(List(l)), expr) => eval_let_star(env.clone(), l, expr),
+            (Some(Vector(l)), expr) => eval_let_star(env.clone(), l, expr),
+            _ => Err(format!("first argument to def! must be a symbol.")),
+        }
+    })))
+}
+
 impl Env {
     pub fn new() -> Self {
-        Env(hashmap! {
-            String::from("+") => plus(),
-            String::from("*") => multiply(),
-            String::from("/") => divide(),
-            String::from("-") => subtract(),
-            String::from("def!") => define()
-        })
+        Env {
+            envs: vec![hashmap! {
+                    String::from("+") => plus(),
+                    String::from("*") => multiply(),
+                    String::from("/") => divide(),
+                    String::from("-") => subtract(),
+                    String::from("def!") => define(),
+                    String::from("let*") => let_star()
+            }],
+        }
     }
 }

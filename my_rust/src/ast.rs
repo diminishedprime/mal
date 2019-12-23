@@ -1,4 +1,5 @@
 use core::fmt::Debug;
+use im::hashmap;
 use im::HashMap;
 use std::cell::RefCell;
 use std::fmt;
@@ -34,7 +35,9 @@ pub enum AST {
     Nil, // Int(i64),
 }
 
-pub struct Env(pub HashMap<SymbolVal, AST>);
+pub struct Env {
+    pub envs: Vec<HashMap<SymbolVal, AST>>,
+}
 
 impl PartialEq for ClosureVal {
     fn eq(&self, _other: &Self) -> bool {
@@ -100,15 +103,34 @@ impl Display for AST {
 
 impl Env {
     pub fn get(&self, key: &SymbolVal) -> Result<AST, String> {
-        Ok(self
-            .0
-            .get(key)
-            .ok_or(format!("Key: {} is not in the enviroment.", key))?
-            .clone())
+        let mut envs = self.envs.iter().rev();
+        while let Some(env) = envs.next() {
+            match env.get(key) {
+                Some(val) => return Ok(val.clone()),
+                None => continue,
+            }
+        }
+        return Err(format!("Key: {} is not in the enviroment.", key));
+    }
+
+    pub fn new_local(&mut self) {
+        self.envs.push(hashmap![])
+    }
+
+    pub fn clear_local(&mut self) {
+        if self.envs.len() == 1 {
+            panic!("cannot clear the last environment. You probably forgot to call new_local before calling this method.")
+        }
+        self.envs.remove(self.envs.len() - 1);
     }
 
     pub fn set(&mut self, key: SymbolVal, value: AST) -> Result<AST, String> {
-        self.0.insert(key.clone(), value.clone());
+        let len = self.envs.len();
+        // TODO - is there a way to avoid this unsafe?
+        unsafe {
+            let env = self.envs.get_unchecked_mut(len - 1);
+            env.insert(key.clone(), value.clone());
+        }
         Ok(value)
     }
 }
