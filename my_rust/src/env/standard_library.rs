@@ -4,6 +4,7 @@ use crate::ast::AST::Double;
 use crate::ast::AST::List;
 use crate::ast::AST::Symbol;
 use crate::ast::AST::Vector;
+use crate::env::util;
 use crate::env::Env;
 use crate::eval::eval;
 use core::cell::RefCell;
@@ -32,25 +33,17 @@ pub fn multiply(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<
 }
 
 pub fn divide(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
-    let mut a = args.peekable();
-    let first = a
-        .next()
-        .ok_or(String::from("- requires at least 1 argument"))?;
-    if let Double(d) = first {
-        if a.peek().is_none() {
-            Ok(Double(1.0 / d))
-        } else {
-            a.fold(Ok(first), |acc, arg| {
-                let acc = acc?;
-                if let (Double(acc), Double(arg)) = (acc, &arg) {
-                    Ok(Double(acc / arg))
-                } else {
-                    Err(format!("Arg: {} was not a number", arg))
-                }
-            })
-        }
+    let (first, rest) = util::one_or_more_args("/", args)?;
+    let first = first.unwrap_double()?;
+    let mut rest = rest
+        .map(AST::unwrap_double)
+        .collect::<Result<Vec<_>, String>>()?
+        .into_iter()
+        .peekable();
+    if rest.peek().is_none() {
+        Ok(Double(1.0 / first))
     } else {
-        Err(format!("Arg: {} was not a number", first))
+        Ok(Double(rest.fold(first, |acc, arg| acc / arg)))
     }
 }
 

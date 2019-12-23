@@ -1,13 +1,14 @@
+mod standard_library;
+mod util;
+
 use crate::ast::ClosureVal;
 use crate::ast::SymbolVal;
 use crate::ast::AST;
 use crate::ast::AST::Closure;
 use im::hashmap;
 use im::HashMap;
-use std::rc::Rc;
-
-mod standard_library;
 use standard_library::{define, divide, eq, let_star, multiply, plus, subtract};
+use std::rc::Rc;
 
 pub struct Env {
     pub envs: Vec<HashMap<SymbolVal, AST>>,

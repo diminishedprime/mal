@@ -37,6 +37,15 @@ pub enum AST {
     Nil, // Int(i64),
 }
 
+impl AST {
+    pub fn unwrap_double(self) -> Result<f64, String> {
+        match self {
+            Double(d) => Ok(d),
+            a => Err(format!("{} is not a double", a)),
+        }
+    }
+}
+
 impl PartialEq for ClosureVal {
     fn eq(&self, _other: &Self) -> bool {
         // TODO - figure out if there's a good way to compare closures
