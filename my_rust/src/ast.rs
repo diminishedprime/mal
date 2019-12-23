@@ -9,11 +9,10 @@ use AST::Closure;
 use AST::Double;
 use AST::Keyword;
 use AST::LString;
-use AST::List;
+use AST::ListLike;
 use AST::Map;
 use AST::Nil;
 use AST::Symbol;
-use AST::Vector;
 
 pub type SymbolVal = String;
 
@@ -22,11 +21,16 @@ pub struct ClosureVal(
     pub Rc<dyn Fn(Rc<RefCell<Env>>, Box<dyn Iterator<Item = AST>>) -> Result<AST, String>>,
 );
 
+#[derive(Clone)]
+pub enum Listy {
+    List(Vec<AST>),
+    Vector(Vec<AST>),
+}
+
 // TODO - pull out primitives into their own variant.
 #[derive(Clone, PartialEq)]
 pub enum AST {
-    List(Vec<AST>),
-    Vector(Vec<AST>),
+    ListLike(Listy),
     Map(Vec<AST>),
     Symbol(SymbolVal),
     Keyword(String),
@@ -35,6 +39,14 @@ pub enum AST {
     Closure(ClosureVal),
     Boolean(bool),
     Nil, // Int(i64),
+}
+
+pub fn list_of(v: Vec<AST>) -> AST {
+    AST::ListLike(Listy::List(v))
+}
+
+pub fn vec_of(v: Vec<AST>) -> AST {
+    AST::ListLike(Listy::Vector(v))
 }
 
 impl AST {
@@ -54,8 +66,21 @@ impl AST {
 
     pub fn unwrap_list_like(self) -> Result<Vec<AST>, String> {
         match self {
-            List(s) | Vector(s) => Ok(s),
+            ListLike(s) => Ok(match s {
+                Listy::List(l) | Listy::Vector(l) => l,
+            }),
             a => Err(format!("{} is not a List or Vector", a)),
+        }
+    }
+}
+
+impl PartialEq for Listy {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Listy::List(f), Listy::List(s)) => f == s,
+            (Listy::Vector(f), Listy::List(s)) => f == s,
+            (Listy::Vector(f), Listy::Vector(s)) => f == s,
+            (Listy::List(f), Listy::Vector(s)) => f == s,
         }
     }
 }
@@ -73,16 +98,10 @@ impl Debug for AST {
     }
 }
 
-impl Display for AST {
+impl Display for Listy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Nil => write!(f, "nil"),
-            Double(a) => write!(f, "{}", a),
-            Symbol(a) => write!(f, "{}", a),
-            LString(a) => write!(f, r#""{}""#, a),
-            Keyword(a) => write!(f, ":{}", a),
-            Boolean(a) => write!(f, "{}", a),
-            Vector(contents) => {
+            Listy::Vector(contents) => {
                 write!(f, "[")?;
                 let mut contents = contents.iter().peekable();
                 while let Some(val) = contents.next() {
@@ -94,6 +113,32 @@ impl Display for AST {
                 }
                 write!(f, "]")
             }
+            Listy::List(contents) => {
+                write!(f, "(")?;
+                let mut contents = contents.iter().peekable();
+                while let Some(val) = contents.next() {
+                    if contents.peek().is_some() {
+                        write!(f, "{} ", val)?;
+                    } else {
+                        write!(f, "{}", val)?;
+                    }
+                }
+                write!(f, ")")
+            }
+        }
+    }
+}
+
+impl Display for AST {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Nil => write!(f, "nil"),
+            Double(a) => write!(f, "{}", a),
+            Symbol(a) => write!(f, "{}", a),
+            LString(a) => write!(f, r#""{}""#, a),
+            Keyword(a) => write!(f, ":{}", a),
+            Boolean(a) => write!(f, "{}", a),
+            ListLike(l) => write!(f, "{}", l),
             Map(contents) => {
                 write!(f, "{{")?;
                 let mut contents = contents.iter().peekable();
@@ -106,18 +151,18 @@ impl Display for AST {
                 }
                 write!(f, "}}")
             }
-            List(contents) => {
-                write!(f, "(")?;
-                let mut contents = contents.iter().peekable();
-                while let Some(val) = contents.next() {
-                    if contents.peek().is_some() {
-                        write!(f, "{} ", val)?;
-                    } else {
-                        write!(f, "{}", val)?;
-                    }
-                }
-                write!(f, ")")
-            }
+            // List(contents) => {
+            //     write!(f, "(")?;
+            //     let mut contents = contents.iter().peekable();
+            //     while let Some(val) = contents.next() {
+            //         if contents.peek().is_some() {
+            //             write!(f, "{} ", val)?;
+            //         } else {
+            //             write!(f, "{}", val)?;
+            //         }
+            //     }
+            //     write!(f, ")")
+            // }
             Closure(closure_val) => write!(f, "fn @{:p}", &closure_val),
         }
     }
@@ -141,7 +186,7 @@ mod tests {
 
     #[test]
     fn display_list() {
-        let actual = List(vec![Symbol(String::from("abc")), Double(1.23)]);
+        let actual = ListLike(Listy::List(vec![Symbol(String::from("abc")), Double(1.23)]));
         assert_eq!(format!("{}", actual), String::from("(abc 1.23)"));
     }
 

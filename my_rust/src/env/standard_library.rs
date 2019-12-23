@@ -1,7 +1,8 @@
+use crate::ast::Listy;
 use crate::ast::AST;
 use crate::ast::AST::Boolean;
 use crate::ast::AST::Double;
-use crate::ast::AST::List;
+use crate::ast::AST::ListLike;
 use crate::env::util;
 use crate::env::Env;
 use crate::eval::eval;
@@ -113,5 +114,5 @@ pub fn eq(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, S
 }
 
 pub fn list(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
-    Ok(List(args.collect::<Vec<_>>()))
+    Ok(ListLike(Listy::List(args.collect::<Vec<_>>())))
 }

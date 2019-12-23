@@ -1,12 +1,14 @@
+use crate::ast::list_of;
+use crate::ast::vec_of;
+use crate::ast::Listy;
 use crate::ast::AST;
+use crate::ast::AST::ListLike;
 use crate::env::Env;
 use std::cell::RefCell;
 use std::rc::Rc;
 use AST::Closure;
-use AST::List;
 use AST::Map;
 use AST::Symbol;
-use AST::Vector;
 
 fn split_fn_and_arg(program: Vec<AST>) -> Result<(AST, impl Iterator<Item = AST>), String> {
     let mut program_iter = program.into_iter();
@@ -24,36 +26,38 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> Result<AST, String> {
             .into_iter()
             .map(|part| eval(env.clone(), part))
             .collect::<Result<_, _>>()?),
-        Vector(v) => Vector(
-            v.into_iter()
-                .map(|part| eval(env.clone(), part))
-                .collect::<Result<_, _>>()?,
-        ),
-        List(l) => {
-            if l.len() == 0 {
-                List(vec![])
-            } else {
-                let (first, rest) = split_fn_and_arg(l)?;
-                match first {
-                    Symbol(s) => {
-                        let thing = env.borrow().get(&s)?;
-                        let evaled = match s.as_ref() {
-                            // TODO - this probably shouldn't be necessary to fix the types up.
-                            "let*" | "def!" => rest.collect::<Vec<_>>().into_iter(),
-                            _ => rest
-                                .map(|part| eval(env.clone(), part))
-                                .collect::<Result<Vec<_>, _>>()?
-                                .into_iter(),
-                        };
-                        match thing {
-                            Closure(val) => val.0(env.clone(), Box::new(evaled))?,
-                            _ => return Err(format!("Env value: {} is not a closure", thing)),
+        ListLike(l) => match l {
+            Listy::List(l) => {
+                if l.len() == 0 {
+                    list_of(vec![])
+                } else {
+                    let (first, rest) = split_fn_and_arg(l)?;
+                    match first {
+                        Symbol(s) => {
+                            let thing = env.borrow().get(&s)?;
+                            let evaled = match s.as_ref() {
+                                // TODO - this probably shouldn't be necessary to fix the types up.
+                                "let*" | "def!" => rest.collect::<Vec<_>>().into_iter(),
+                                _ => rest
+                                    .map(|part| eval(env.clone(), part))
+                                    .collect::<Result<Vec<_>, _>>()?
+                                    .into_iter(),
+                            };
+                            match thing {
+                                Closure(val) => val.0(env.clone(), Box::new(evaled))?,
+                                _ => return Err(format!("Env value: {} is not a closure", thing)),
+                            }
                         }
+                        _ => return Err(String::from("not implemented")),
                     }
-                    _ => return Err(String::from("not implemented")),
                 }
             }
-        }
+            Listy::Vector(v) => vec_of(
+                v.into_iter()
+                    .map(|part| eval(env.clone(), part))
+                    .collect::<Result<_, _>>()?,
+            ),
+        },
         Closure(_) => return Err(String::from("not implemented")),
         otherwise => otherwise,
     })
@@ -83,7 +87,10 @@ mod tests {
     fn list_builtin() {
         let program = parse("(list 1 2)").unwrap();
         let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
-        assert_eq!(actual, List(vec![Double(1.0), Double(2.0)]));
+        assert_eq!(
+            actual,
+            ListLike(Listy::List(vec![Double(1.0), Double(2.0)]))
+        );
     }
 
     #[test]
@@ -92,7 +99,11 @@ mod tests {
         let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
         assert_eq!(
             actual,
-            List(vec![Double(1.0), Double(2.0), List(vec![Double(3.0)])])
+            ListLike(Listy::List(vec![
+                Double(1.0),
+                Double(2.0),
+                ListLike(Listy::List(vec![Double(3.0)]))
+            ]))
         );
     }
 }

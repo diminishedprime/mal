@@ -1,3 +1,5 @@
+use crate::ast::list_of;
+use crate::ast::Listy;
 use crate::ast::AST;
 use nom::branch::alt;
 use nom::bytes::complete::is_a;
@@ -27,7 +29,7 @@ fn vector(i: &str) -> IResult<&str, AST> {
             separated_list(whitespace, ast),
             preceded(optional_whitespace, char(']')),
         ),
-        AST::Vector,
+        |s| AST::ListLike(Listy::Vector(s)),
     )(i)
 }
 
@@ -49,7 +51,7 @@ fn list(i: &str) -> IResult<&str, AST> {
             separated_list(whitespace, ast),
             preceded(optional_whitespace, char(')')),
         ),
-        AST::List,
+        |s| AST::ListLike(Listy::List(s)),
     )(i)
 }
 
@@ -146,31 +148,31 @@ fn whitespace(i: &str) -> IResult<&str, &str> {
 
 fn quote(i: &str) -> IResult<&str, AST> {
     map(preceded(char('\''), ast), |ast| {
-        AST::List(vec![AST::Symbol(String::from("quote")), ast])
+        list_of(vec![AST::Symbol(String::from("quote")), ast])
     })(i)
 }
 
 fn quasiquote(i: &str) -> IResult<&str, AST> {
     map(preceded(char('`'), ast), |ast| {
-        AST::List(vec![AST::Symbol(String::from("quasiquote")), ast])
+        list_of(vec![AST::Symbol(String::from("quasiquote")), ast])
     })(i)
 }
 
 fn splice_unquote(i: &str) -> IResult<&str, AST> {
     map(preceded(tag("~@"), ast), |ast| {
-        AST::List(vec![AST::Symbol(String::from("splice-unquote")), ast])
+        list_of(vec![AST::Symbol(String::from("splice-unquote")), ast])
     })(i)
 }
 
 fn unquote(i: &str) -> IResult<&str, AST> {
     map(preceded(char('~'), ast), |ast| {
-        AST::List(vec![AST::Symbol(String::from("unquote")), ast])
+        list_of(vec![AST::Symbol(String::from("unquote")), ast])
     })(i)
 }
 
 fn deref(i: &str) -> IResult<&str, AST> {
     map(preceded(char('@'), ast), |ast| {
-        AST::List(vec![AST::Symbol(String::from("deref")), ast])
+        list_of(vec![AST::Symbol(String::from("deref")), ast])
     })(i)
 }
 
@@ -182,7 +184,7 @@ fn keyword(i: &str) -> IResult<&str, AST> {
 
 fn with_meta(i: &str) -> IResult<&str, AST> {
     map(preceded(char('^'), pair(parse_map, ast)), |(m, a)| {
-        AST::List(vec![AST::Symbol(String::from("with-meta")), a, m])
+        list_of(vec![AST::Symbol(String::from("with-meta")), a, m])
     })(i)
 }
 
@@ -214,11 +216,11 @@ pub fn parse(input: &str) -> Result<AST, String> {
 #[cfg(test)]
 mod tests {
     use super::AST::Double;
-    use super::AST::List;
+    use super::AST::ListLike;
     use super::AST::Map;
     use super::AST::Symbol;
-    use super::AST::Vector;
     use super::*;
+    use crate::ast::Listy;
 
     #[test]
     fn parse_symbol() {
@@ -253,31 +255,40 @@ mod tests {
     #[test]
     fn parse_empty_list() {
         let actual = parse("( ) ").unwrap();
-        assert_eq!(actual, List(vec![]));
+        assert_eq!(actual, ListLike(Listy::List(vec![])));
     }
 
     #[test]
     fn parse_quote_1() {
         let actual = parse("'1").unwrap();
-        assert_eq!(actual, List(vec![Symbol("quote".to_string()), Double(1.0)]));
+        assert_eq!(
+            actual,
+            ListLike(Listy::List(vec![Symbol("quote".to_string()), Double(1.0)]))
+        );
     }
 
     #[test]
     fn parse_one_item_list() {
         let actual = parse("(1.34)").unwrap();
-        assert_eq!(actual, List(vec![Double(1.34)]));
+        assert_eq!(actual, ListLike(Listy::List(vec![Double(1.34)])));
     }
 
     #[test]
     fn parse_standard_list() {
         let actual = parse("(1.23 1.23)").unwrap();
-        assert_eq!(actual, List(vec![Double(1.23), Double(1.23)]));
+        assert_eq!(
+            actual,
+            ListLike(Listy::List(vec![Double(1.23), Double(1.23)]))
+        );
     }
 
     #[test]
     fn parse_list_weird_whitespace() {
         let actual = parse(" (  ,1.23 ,,, ,1.23,,, )   ").unwrap();
-        assert_eq!(actual, List(vec![Double(1.23), Double(1.23)]));
+        assert_eq!(
+            actual,
+            ListLike(Listy::List(vec![Double(1.23), Double(1.23)]))
+        );
     }
 
     #[test]
@@ -291,11 +302,11 @@ mod tests {
         let actual = parse("^{1 2} [3 4]").unwrap();
         assert_eq!(
             actual,
-            List(vec![
+            ListLike(Listy::List(vec![
                 Symbol(String::from("with-meta")),
-                Vector(vec![Double(3.0), Double(4.0)]),
+                ListLike(Listy::Vector(vec![Double(3.0), Double(4.0)])),
                 Map(vec![Double(1.0), Double(2.0)]),
-            ])
+            ]))
         );
     }
 }
