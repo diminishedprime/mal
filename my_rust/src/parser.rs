@@ -68,7 +68,7 @@ fn special_symbol(i: &str) -> IResult<&str, AST> {
 }
 
 fn symbol_char(i: &str) -> IResult<&str, &str> {
-    alt((is_a("+*-?"), alphanumeric1))(i)
+    alt((is_a("+*-?!"), alphanumeric1))(i)
 }
 
 fn symbol(i: &str) -> IResult<&str, AST> {
@@ -227,6 +227,12 @@ mod tests {
     }
 
     #[test]
+    fn parse_def_bang() {
+        let actual = parse("def!").unwrap();
+        assert_eq!(actual, Symbol("def!".to_string()));
+    }
+
+    #[test]
     fn parse_exp() {
         let actual = parse("**").unwrap();
         assert_eq!(actual, Symbol("**".to_string()));
@@ -292,5 +298,4 @@ mod tests {
             ])
         );
     }
-
 }

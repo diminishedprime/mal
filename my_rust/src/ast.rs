@@ -1,6 +1,6 @@
 use core::fmt::Debug;
-use im::hashmap;
 use im::HashMap;
+use std::cell::RefCell;
 use std::fmt;
 use std::fmt::Display;
 use std::rc::Rc;
@@ -10,13 +10,16 @@ use AST::Keyword;
 use AST::LString;
 use AST::List;
 use AST::Map;
+use AST::Nil;
 use AST::Symbol;
 use AST::Vector;
 
 type SymbolVal = String;
 
 #[derive(Clone)]
-pub struct ClosureVal(pub Rc<dyn Fn(Box<dyn Iterator<Item = AST>>) -> Result<AST, String>>);
+pub struct ClosureVal(
+    pub Rc<dyn Fn(Rc<RefCell<Env>>, Box<dyn Iterator<Item = AST>>) -> Result<AST, String>>,
+);
 
 #[derive(Clone, PartialEq)]
 pub enum AST {
@@ -28,12 +31,10 @@ pub enum AST {
     Double(f64),
     LString(String),
     Closure(ClosureVal),
-    // Int(i64),
+    Nil, // Int(i64),
 }
 
-pub struct Env {
-    pub functions: HashMap<SymbolVal, ClosureVal>,
-}
+pub struct Env(pub HashMap<SymbolVal, AST>);
 
 impl PartialEq for ClosureVal {
     fn eq(&self, _other: &Self) -> bool {
@@ -51,6 +52,7 @@ impl Debug for AST {
 impl Display for AST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Nil => write!(f, "nil"),
             Double(a) => write!(f, "{}", a),
             Symbol(a) => write!(f, "{}", a),
             LString(a) => write!(f, r#""{}""#, a),
@@ -97,71 +99,17 @@ impl Display for AST {
 }
 
 impl Env {
-    pub fn new() -> Self {
-        Env {
-            functions: hashmap! {
-                String::from("+") => ClosureVal(Rc::new(|a| {
-                    a.fold(Ok(Double(0.0)), |acc, arg| {
-                        let acc = acc?;
-                        if let (Double(acc), Double(arg)) = (acc,&arg) {
-                            Ok(Double(acc + arg))
-                        } else {
-                            Err(format!("Arg: {} was not a number", arg))
-                        }
-                    })
-                })),
-                String::from("*") => ClosureVal(Rc::new(|a| {
-                    a.fold(Ok(Double(1.0)), |acc, arg| {
-                        let acc = acc?;
-                        if let (Double(acc), Double(arg)) = (acc,&arg) {
-                            Ok(Double(acc * arg))
-                        } else {
-                            Err(format!("Arg: {} was not a number", arg))
-                        }
-                    })
-                })),
-                String::from("/") => ClosureVal(Rc::new(|a| {
-                    let mut a = a.peekable();
-                    let first = a.next().ok_or(String::from("- requires at least 1 argument"))?;
-                    if let Double(d) = first {
-                        if a.peek().is_none() {
-                            Ok(Double(1.0/d))
-                        } else {
-                            a.fold(Ok(first), |acc, arg| {
-                                let acc = acc?;
-                                if let (Double(acc), Double(arg)) = (acc,&arg) {
-                                    Ok(Double(acc / arg))
-                                } else {
-                                    Err(format!("Arg: {} was not a number", arg))
-                                }
-                            })
-                        }
-                    } else {
-                        Err(format!("Arg: {} was not a number", first))
-                    }
-                })),
-                String::from("-") => ClosureVal(Rc::new(|a| {
-                    let mut a = a.peekable();
-                    let first = a.next().ok_or(String::from("- requires at least 1 argument"))?;
-                    if let Double(d) = first {
-                        if a.peek().is_none() {
-                            Ok(Double(-d))
-                        } else {
-                            a.fold(Ok(first), |acc, arg| {
-                                let acc = acc?;
-                                if let (Double(acc), Double(arg)) = (acc,&arg) {
-                                    Ok(Double(acc - arg))
-                                } else {
-                                    Err(format!("Arg: {} was not a number", arg))
-                                }
-                            })
-                        }
-                    } else {
-                        Err(format!("Arg: {} was not a number", first))
-                    }
-                }))
-            },
-        }
+    pub fn get(&self, key: &SymbolVal) -> Result<AST, String> {
+        Ok(self
+            .0
+            .get(key)
+            .ok_or(format!("Key: {} is not in the enviroment.", key))?
+            .clone())
+    }
+
+    pub fn set(&mut self, key: SymbolVal, value: AST) -> Result<AST, String> {
+        self.0.insert(key.clone(), value.clone());
+        Ok(value)
     }
 }
 
@@ -195,7 +143,7 @@ mod tests {
 
     #[test]
     fn display_closure() {
-        let actual = Closure(ClosureVal(Rc::new(|mut a| Ok(a.next().unwrap()))));
+        let actual = Closure(ClosureVal(Rc::new(|_, mut a| Ok(a.next().unwrap()))));
         assert_eq!(format!("{}", actual).contains("fn @0x"), true)
     }
 }
