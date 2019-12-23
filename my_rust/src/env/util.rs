@@ -21,3 +21,12 @@ pub fn two_args(fn_name: &str, mut args: impl Iterator<Item = AST>) -> Result<(A
         _ => Err(String::from("{} can only have two arguments")),
     }
 }
+
+pub fn one_arg(fn_name: &str, mut args: impl Iterator<Item = AST>) -> Result<AST, String> {
+    let first = args.next();
+    let second = args.next();
+    match (first, second) {
+        (Some(first), None) => Ok(first),
+        _ => Err(format!("{} can only have one argument", fn_name)),
+    }
+}

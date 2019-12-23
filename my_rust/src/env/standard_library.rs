@@ -115,3 +115,8 @@ pub fn eq(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, S
 pub fn list(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
     Ok(list_of(args.collect::<Vec<_>>()))
 }
+
+pub fn is_list(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+    let arg = util::one_arg("list?", args)?;
+    arg.unwrap_list().map(|_| Boolean(true))
+}

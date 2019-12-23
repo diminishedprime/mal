@@ -64,6 +64,16 @@ impl AST {
         }
     }
 
+    pub fn unwrap_list(self) -> Result<Vec<AST>, String> {
+        match self {
+            ListLike(s) => match s {
+                Listy::List(l) => Ok(l),
+                a => Err(format!("{} is not a List or Vector", a)),
+            },
+            a => Err(format!("{} is not a List or Vector", a)),
+        }
+    }
+
     pub fn unwrap_list_like(self) -> Result<Vec<AST>, String> {
         match self {
             ListLike(s) => Ok(match s {
