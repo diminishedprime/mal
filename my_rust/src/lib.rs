@@ -1,12 +1,12 @@
 extern crate nom;
 
 pub mod ast;
-pub mod env;
 pub mod eval;
 pub mod parser;
 pub mod print;
 pub mod read;
 
+use eval::env;
 use std::cell::RefCell;
 use std::rc::Rc;
 

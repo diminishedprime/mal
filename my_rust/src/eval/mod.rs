@@ -1,9 +1,11 @@
+pub mod env;
+
 use crate::ast::list_of;
 use crate::ast::vec_of;
 use crate::ast::Listy;
 use crate::ast::AST;
 use crate::ast::AST::ListLike;
-use crate::env::Env;
+use env::Env;
 use std::cell::RefCell;
 use std::rc::Rc;
 use AST::Closure;
