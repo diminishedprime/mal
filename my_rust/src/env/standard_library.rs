@@ -1,7 +1,6 @@
 use crate::ast::AST;
 use crate::ast::AST::Boolean;
 use crate::ast::AST::Double;
-use crate::ast::AST::Symbol;
 use crate::env::util;
 use crate::env::Env;
 use crate::eval::eval;
@@ -56,8 +55,8 @@ pub fn subtract(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<
     }
 }
 
-pub fn define(env: Rc<RefCell<Env>>, a: impl Iterator<Item = AST>) -> Result<AST, String> {
-    let (first, second) = util::two_args("def!", a)?;
+pub fn define(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+    let (first, second) = util::two_args("def!", args)?;
     let first = first.unwrap_symbol()?;
     let second = eval(env.clone(), second)?;
     env.borrow_mut().set(first, second)
@@ -73,12 +72,12 @@ pub fn let_star_helper(
         let binding = bindings.next();
         match (name, binding) {
             (None, None) => break,
-            (Some(Symbol(name)), Some(expr)) => {
+            (Some(name), Some(expr)) => {
+                let name = name.unwrap_symbol()?;
                 let value = eval(env.clone(), expr)?;
                 env.borrow_mut().set(name.to_string(), value)?;
             }
-            (Some(_), Some(_)) => return Err(String::from("let bindings must be symbols")),
-            (Some(_), None) => {
+            (_, None) => {
                 return Err(String::from(
                     "let bindings must be an even number of forms.",
                 ))
@@ -101,12 +100,9 @@ pub fn let_star(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Resul
     result
 }
 
-pub fn eq(_: Rc<RefCell<Env>>, mut a: impl Iterator<Item = AST>) -> Result<AST, String> {
-    // TODO - make a helper function for asserting at least 1 arg.
-    let first = a
-        .next()
-        .ok_or(String::from("= requires at least 1 argument."))?;
-    Ok(Boolean(a.fold(true, |acc, next: AST| {
+pub fn eq(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+    let (first, rest) = util::one_or_more_args("=", args)?;
+    Ok(Boolean(rest.fold(true, |acc, next: AST| {
         if acc == false {
             false
         } else {
