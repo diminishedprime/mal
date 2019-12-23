@@ -58,7 +58,7 @@ fn list(i: &str) -> IResult<&str, AST> {
 // TODO - I think I need to use peek here.
 fn special_symbol(i: &str) -> IResult<&str, AST> {
     map(
-        pair(is_a("+*/-"), not(one_of("0123456789"))),
+        pair(is_a("+*/-="), not(one_of("0123456789"))),
         |(c, _): (&str, _)| {
             let mut s = String::new();
             s.push_str(c);

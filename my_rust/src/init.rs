@@ -1,6 +1,7 @@
 use crate::ast::ClosureVal;
 use crate::ast::Env;
 use crate::ast::AST;
+use crate::ast::AST::Boolean;
 use crate::ast::AST::Closure;
 use crate::ast::AST::Double;
 use crate::ast::AST::List;
@@ -149,16 +150,33 @@ fn let_star() -> AST {
     })))
 }
 
+fn eq() -> AST {
+    Closure(ClosureVal(Rc::new(|_, mut a| {
+        // TODO - make a helper function for asserting at least 1 arg.
+        let first = a
+            .next()
+            .ok_or(String::from("= requires at least 1 argument."))?;
+        Ok(Boolean(a.fold(true, |acc, next: AST| {
+            if acc == false {
+                false
+            } else {
+                next == first
+            }
+        })))
+    })))
+}
+
 impl Env {
     pub fn new() -> Self {
         Env {
             envs: vec![hashmap! {
-                    String::from("+") => plus(),
-                    String::from("*") => multiply(),
-                    String::from("/") => divide(),
-                    String::from("-") => subtract(),
-                    String::from("def!") => define(),
-                    String::from("let*") => let_star()
+                String::from("+") => plus(),
+                String::from("*") => multiply(),
+                String::from("/") => divide(),
+                String::from("-") => subtract(),
+                String::from("def!") => define(),
+                String::from("let*") => let_star(),
+                String::from("=") => eq()
             }],
         }
     }

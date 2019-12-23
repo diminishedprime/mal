@@ -5,6 +5,7 @@ use std::cell::RefCell;
 use std::fmt;
 use std::fmt::Display;
 use std::rc::Rc;
+use AST::Boolean;
 use AST::Closure;
 use AST::Double;
 use AST::Keyword;
@@ -22,6 +23,7 @@ pub struct ClosureVal(
     pub Rc<dyn Fn(Rc<RefCell<Env>>, Box<dyn Iterator<Item = AST>>) -> Result<AST, String>>,
 );
 
+// TODO - pull out primitives into their own variant.
 #[derive(Clone, PartialEq)]
 pub enum AST {
     List(Vec<AST>),
@@ -32,6 +34,7 @@ pub enum AST {
     Double(f64),
     LString(String),
     Closure(ClosureVal),
+    Boolean(bool),
     Nil, // Int(i64),
 }
 
@@ -60,6 +63,7 @@ impl Display for AST {
             Symbol(a) => write!(f, "{}", a),
             LString(a) => write!(f, r#""{}""#, a),
             Keyword(a) => write!(f, ":{}", a),
+            Boolean(a) => write!(f, "{}", a),
             Vector(contents) => {
                 write!(f, "[")?;
                 let mut contents = contents.iter().peekable();
