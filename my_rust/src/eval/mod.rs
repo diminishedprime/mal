@@ -1,5 +1,5 @@
-use crate::ast::Env;
 use crate::ast::AST;
+use crate::env::Env;
 use std::cell::RefCell;
 use std::rc::Rc;
 use AST::Closure;

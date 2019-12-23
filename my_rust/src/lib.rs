@@ -1,16 +1,17 @@
 extern crate nom;
 
 pub mod ast;
+pub mod env;
 pub mod eval;
-mod init;
 pub mod parser;
 pub mod print;
 pub mod read;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
 pub fn repl() -> Result<(), String> {
-    let env = Rc::new(RefCell::new(ast::Env::new()));
+    let env = Rc::new(RefCell::new(env::Env::new()));
     loop {
         let loop_result = read::read("user> ")
             .and_then(|read_val| parser::parse(&read_val))
