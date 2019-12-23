@@ -118,15 +118,17 @@ pub fn list(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST,
 
 pub fn is_list(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
     let arg = util::one_arg("list?", args)?;
-    arg.unwrap_list().map(|_| Boolean(true))
+    Ok(Boolean(arg.is_list()))
 }
 
 pub fn is_empty(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
     let arg = util::one_arg("empty?", args)?;
-    let first = arg.unwrap_list_like();
-    let first = first.iter().next();
-    Ok(match first {
-        Some(_) => Boolean(true),
-        _ => Boolean(false),
-    })
+    let contents = arg.unwrap_list_like()?;
+    Ok(Boolean(contents.is_empty()))
+}
+
+pub fn count(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Result<AST, String> {
+    let arg = util::one_arg("empty?", args)?;
+    let arg = arg.unwrap_list_like()?;
+    Ok(Double(arg.len() as f64))
 }

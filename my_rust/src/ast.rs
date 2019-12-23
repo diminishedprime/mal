@@ -82,6 +82,13 @@ impl AST {
             a => Err(format!("{} is not a List or Vector", a)),
         }
     }
+
+    pub fn is_list(&self) -> bool {
+        match self {
+            ListLike(Listy::List(_)) => true,
+            _ => false,
+        }
+    }
 }
 
 impl PartialEq for Listy {

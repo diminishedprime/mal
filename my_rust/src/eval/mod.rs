@@ -67,27 +67,34 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> Result<AST, String> {
 mod tests {
     use super::*;
     use crate::parser::parse;
-    use AST::Double;
+
+    fn m_false() -> AST {
+        AST::Boolean(false)
+    }
+
+    fn m_double(d: f64) -> AST {
+        AST::Double(d)
+    }
 
     #[test]
     fn def_bang() {
         let program = parse("(def! a 3)").unwrap();
         let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
-        assert_eq!(actual, Double(3.0));
+        assert_eq!(actual, m_double(3.0));
     }
 
     #[test]
     fn let_star() {
         let program = parse("(let* (a 3 b 4 a 6) a)").unwrap();
         let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
-        assert_eq!(actual, Double(6.0));
+        assert_eq!(actual, m_double(6.0));
     }
 
     #[test]
     fn list_builtin() {
         let program = parse("(list 1 2)").unwrap();
         let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
-        assert_eq!(actual, list_of(vec![Double(1.0), Double(2.0)]));
+        assert_eq!(actual, list_of(vec![m_double(1.0), m_double(2.0)]));
     }
 
     #[test]
@@ -96,7 +103,18 @@ mod tests {
         let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
         assert_eq!(
             actual,
-            list_of(vec![Double(1.0), Double(2.0), list_of(vec![Double(3.0)])])
+            list_of(vec![
+                m_double(1.0),
+                m_double(2.0),
+                list_of(vec![m_double(3.0)])
+            ])
         );
+    }
+
+    #[test]
+    fn is_empty() {
+        let program = parse("(empty? (list 1 2 3))").unwrap();
+        let actual = eval(Rc::new(RefCell::new(Env::new())), program).unwrap();
+        assert_eq!(actual, m_false());
     }
 }
