@@ -33,7 +33,7 @@ pub enum AST {
     Keyword(String),
     Double(f64),
     LString(String),
-    ClosureVal(ClosureVal),
+    Closure(ClosureVal),
     Boolean(bool),
     Nil, // Int(i64),
 }
