@@ -23,6 +23,21 @@ pub fn two_args(fn_name: &str, mut args: impl Iterator<Item = AST>) -> EvalResul
     }
 }
 
+pub fn two_or_three_args(
+    fn_name: &str,
+    mut args: impl Iterator<Item = AST>,
+) -> EvalResult<(AST, AST, Option<AST>)> {
+    let first = args.next();
+    let second = args.next();
+    let third = args.next();
+    let no_forth = args.next();
+    match (first, second, third, no_forth) {
+        (Some(first), Some(second), third, None) => Ok((first, second, third)),
+        (_, _, _, Some(_)) => Err(format!("{} can have at most 3 arguments.", fn_name)),
+        _ => Err(format!("{} requires 2 or three arguments", fn_name)),
+    }
+}
+
 pub fn one_arg(fn_name: &str, mut args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let first = args.next();
     let second = args.next();

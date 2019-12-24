@@ -91,6 +91,7 @@ fn symbol(i: &str) -> IResult<&str, AST> {
 fn double(i: &str) -> IResult<&str, AST> {
     map(nom::number::complete::double, AST::Double)(i)
 }
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StringFragment<'a> {
     Literal(&'a str),
@@ -193,11 +194,21 @@ fn with_meta(i: &str) -> IResult<&str, AST> {
     })(i)
 }
 
+fn truee(i: &str) -> IResult<&str, AST> {
+    map(tag("true"), |_| AST::Boolean(true))(i)
+}
+
+fn falsee(i: &str) -> IResult<&str, AST> {
+    map(tag("false"), |_| AST::Boolean(false))(i)
+}
+
 fn ast(i: &str) -> IResult<&str, AST> {
     let expressions = alt((
         list,
         vector,
         parse_map,
+        truee,
+        falsee,
         with_meta,
         keyword,
         string,

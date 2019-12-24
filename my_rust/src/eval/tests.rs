@@ -18,11 +18,29 @@ fn run_program(program: &str) -> EvalResult<AST> {
     eval(Env::new(), program)
 }
 
-// #[test]
-// fn if_true() {
-//     let actual = run_program("(if true (+ 1 1) (+ 2 2))").unwrap();
-//     assert_eq!(actual, m_double(2.0))
-// }
+#[test]
+fn if_true_only_eval_first() {
+    let actual = run_program("(do (if true (def! a 1) (def! a 2)) a)").unwrap();
+    assert_eq!(actual, m_double(1.0))
+}
+
+#[test]
+fn if_false_only_eval_second() {
+    let actual = run_program("(do (if false (def! a 1) (def! a 2)) a)").unwrap();
+    assert_eq!(actual, m_double(2.0))
+}
+
+#[test]
+fn if_false_no_third_return_nil() {
+    let actual = run_program("(if false 1)").unwrap();
+    assert_eq!(actual, nil())
+}
+
+#[test]
+fn if_true_no_third() {
+    let actual = run_program("(if true 1)").unwrap();
+    assert_eq!(actual, m_double(1.0))
+}
 
 #[test]
 fn def_bang() {
@@ -32,22 +50,19 @@ fn def_bang() {
 
 #[test]
 fn let_star() {
-    let program = parse("(let* (a 3 b 4 a 6) a)").unwrap();
-    let actual = eval(Env::new(), program).unwrap();
+    let actual = run_program("(let* (a 3 b 4 a 6) a)").unwrap();
     assert_eq!(actual, m_double(6.0));
 }
 
 #[test]
 fn list_builtin() {
-    let program = parse("(list 1 2)").unwrap();
-    let actual = eval(Env::new(), program).unwrap();
+    let actual = run_program("(list 1 2)").unwrap();
     assert_eq!(actual, list_of(vec![m_double(1.0), m_double(2.0)]));
 }
 
 #[test]
 fn list_builtin_nested() {
-    let program = parse("(list 1 2 (list 3))").unwrap();
-    let actual = eval(Env::new(), program).unwrap();
+    let actual = run_program("(list 1 2 (list 3))").unwrap();
     assert_eq!(
         actual,
         list_of(vec![
@@ -60,28 +75,24 @@ fn list_builtin_nested() {
 
 #[test]
 fn is_empty() {
-    let program = parse("(empty? (list 1 2 3))").unwrap();
-    let actual = eval(Env::new(), program).unwrap();
+    let actual = run_program("(empty? (list 1 2 3))").unwrap();
     assert_eq!(actual, m_false());
 }
 
 #[test]
 fn do_empty() {
-    let program = parse("(do)").unwrap();
-    let actual = eval(Env::new(), program).unwrap();
+    let actual = run_program("(do)").unwrap();
     assert_eq!(actual, nil());
 }
 
 #[test]
 fn do_one_expr() {
-    let program = parse("(do (+ 1 1))").unwrap();
-    let actual = eval(Env::new(), program).unwrap();
+    let actual = run_program("(do (+ 1 1))").unwrap();
     assert_eq!(actual, m_double(2.0));
 }
 
 #[test]
 fn do_with_def_expr() {
-    let program = parse("(do (def! a 1) a)").unwrap();
-    let actual = eval(Env::new(), program).unwrap();
+    let actual = run_program("(do (def! a 1) a)").unwrap();
     assert_eq!(actual, m_double(1.0));
 }

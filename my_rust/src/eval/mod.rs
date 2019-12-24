@@ -43,7 +43,7 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
                             let thing = env.borrow().get(&s)?;
                             let evaled = match s.as_ref() {
                                 // TODO - this probably shouldn't be necessary to fix the types up.
-                                "let*" | "def!" => rest.collect::<Vec<_>>().into_iter(),
+                                "if" | "let*" | "def!" => rest.collect::<Vec<_>>().into_iter(),
                                 _ => rest
                                     .map(|part| eval(env.clone(), part))
                                     .collect::<Result<Vec<_>, _>>()?

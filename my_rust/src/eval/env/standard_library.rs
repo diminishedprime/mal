@@ -28,6 +28,7 @@ pub fn with_standard_library() -> Vec<HashMap<SymbolVal, AST>> {
         String::from("empty?") => Closure(ClosureVal(Rc::new(is_empty))),
         String::from("count") => Closure(ClosureVal(Rc::new(count))),
         String::from("do") => Closure(ClosureVal(Rc::new(doo))),
+        String::from("if") => Closure(ClosureVal(Rc::new(iff))),
     }]
 }
 
@@ -161,4 +162,16 @@ pub fn doo(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult
         last?;
         eval(env.clone(), expr)
     })
+}
+
+pub fn iff(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
+    let (first, second, third) = util::two_or_three_args("if", args)?;
+    let first_evaled = eval(env.clone(), first)?;
+    if first_evaled.is_falsy() {
+        third
+            .map(|third| eval(env.clone(), third))
+            .unwrap_or(Ok(AST::Nil))
+    } else {
+        eval(env.clone(), second)
+    }
 }

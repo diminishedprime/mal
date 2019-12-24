@@ -90,6 +90,13 @@ impl AST {
             _ => false,
         }
     }
+
+    pub fn is_falsy(&self) -> bool {
+        match self {
+            Nil | Boolean(false) => true,
+            _ => false,
+        }
+    }
 }
 
 impl PartialEq for Listy {
