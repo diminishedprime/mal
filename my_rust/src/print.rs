@@ -1,6 +1,17 @@
+use crate::ast::Listy;
 use crate::ast::AST;
+use crate::ast::AST::Boolean;
+use crate::ast::AST::Closure;
+use crate::ast::AST::Double;
+use crate::ast::AST::Keyword;
+use crate::ast::AST::LString;
+use crate::ast::AST::ListLike;
+use crate::ast::AST::Map;
+use crate::ast::AST::Nil;
+use crate::ast::AST::Symbol;
 use crate::eval::EvalResult;
-use core::fmt::Display;
+use std::fmt;
+use std::fmt::Display;
 
 pub fn print(a: impl Display) -> EvalResult<()> {
     println!("{}", a);
@@ -32,26 +43,13 @@ fn escape_str(s: &str) -> String {
 
 impl AST {
     pub fn pr_str(self, print_readably: bool) -> String {
-        use crate::ast::Listy;
-        use crate::ast::AST::Boolean;
-        use crate::ast::AST::Closure;
-        use crate::ast::AST::Double;
-        use crate::ast::AST::Keyword;
-        use crate::ast::AST::LString;
-        use crate::ast::AST::ListLike;
-        use crate::ast::AST::Map;
-        use crate::ast::AST::Nil;
-        use crate::ast::AST::Symbol;
         match self {
             Nil => String::from("nil"),
             Boolean(true) => String::from("true"),
             Boolean(false) => String::from("false"),
             Double(i) => format!("{}", i),
-            //Float(f)    => format!("{}", f),
             LString(s) => {
-                if s.starts_with("\u{29e}") {
-                    format!(":{}", &s[2..])
-                } else if print_readably {
+                if print_readably {
                     format!("\"{}\"", escape_str(&s))
                 } else {
                     s.clone()
@@ -65,6 +63,45 @@ impl AST {
             Map(_contents) => String::from("not implemented"),
             Keyword(kw) => format!(":{}", kw),
             Closure(f) => format!("#<fn {:p}>", f.0),
+        }
+    }
+}
+
+impl Display for AST {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Nil => write!(f, "nil"),
+            Double(a) => write!(f, "{}", a),
+            Symbol(a) => write!(f, "{}", a),
+            LString(a) => write!(f, r#""{}""#, a),
+            Keyword(a) => write!(f, ":{}", a),
+            Boolean(a) => write!(f, "{}", a),
+            ListLike(l) => write!(f, "{}", l),
+            Map(contents) => {
+                write!(f, "{{")?;
+                let mut contents = contents.iter().peekable();
+                while let Some(val) = contents.next() {
+                    if contents.peek().is_some() {
+                        write!(f, "{} ", val)?;
+                    } else {
+                        write!(f, "{}", val)?;
+                    }
+                }
+                write!(f, "}}")
+            }
+            // List(contents) => {
+            //     write!(f, "(")?;
+            //     let mut contents = contents.iter().peekable();
+            //     while let Some(val) = contents.next() {
+            //         if contents.peek().is_some() {
+            //             write!(f, "{} ", val)?;
+            //         } else {
+            //             write!(f, "{}", val)?;
+            //         }
+            //     }
+            //     write!(f, ")")
+            // }
+            Closure(closure_val) => write!(f, "fn @{:p}", &closure_val),
         }
     }
 }

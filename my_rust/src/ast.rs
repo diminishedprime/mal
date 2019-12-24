@@ -6,12 +6,8 @@ use std::fmt;
 use std::fmt::Display;
 use std::rc::Rc;
 use AST::Boolean;
-use AST::Closure;
 use AST::Double;
-use AST::Keyword;
-use AST::LString;
 use AST::ListLike;
-use AST::Map;
 use AST::Nil;
 use AST::Symbol;
 
@@ -37,7 +33,7 @@ pub enum AST {
     Keyword(String),
     Double(f64),
     LString(String),
-    Closure(ClosureVal),
+    ClosureVal(ClosureVal),
     Boolean(bool),
     Nil, // Int(i64),
 }
@@ -154,48 +150,11 @@ impl Display for Listy {
     }
 }
 
-impl Display for AST {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Nil => write!(f, "nil"),
-            Double(a) => write!(f, "{}", a),
-            Symbol(a) => write!(f, "{}", a),
-            LString(a) => write!(f, r#""{}""#, a),
-            Keyword(a) => write!(f, ":{}", a),
-            Boolean(a) => write!(f, "{}", a),
-            ListLike(l) => write!(f, "{}", l),
-            Map(contents) => {
-                write!(f, "{{")?;
-                let mut contents = contents.iter().peekable();
-                while let Some(val) = contents.next() {
-                    if contents.peek().is_some() {
-                        write!(f, "{} ", val)?;
-                    } else {
-                        write!(f, "{}", val)?;
-                    }
-                }
-                write!(f, "}}")
-            }
-            // List(contents) => {
-            //     write!(f, "(")?;
-            //     let mut contents = contents.iter().peekable();
-            //     while let Some(val) = contents.next() {
-            //         if contents.peek().is_some() {
-            //             write!(f, "{} ", val)?;
-            //         } else {
-            //             write!(f, "{}", val)?;
-            //         }
-            //     }
-            //     write!(f, ")")
-            // }
-            Closure(closure_val) => write!(f, "fn @{:p}", &closure_val),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use AST::*;
 
     #[test]
     fn display_double() {
