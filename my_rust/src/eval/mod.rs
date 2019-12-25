@@ -44,45 +44,6 @@ fn eval_fn_star(env: Rc<RefCell<Env>>, forms: impl Iterator<Item = AST>) -> Eval
     }))
 }
 
-fn eval_apply_fn(c: LambdaVal, args: Vec<AST>) -> EvalResult<AST> {
-    let LambdaVal { body, env, params } = c;
-    let has_rest = params.iter().find(|p| *p == "&").is_some();
-    if !has_rest && params.len() != args.len() {
-        return Err(format!("wrong number of args"));
-    }
-    if has_rest && params.len() - 2 > args.len() {
-        return Err(format!("wrong number of args rest"));
-    }
-    let mut params = params.into_iter();
-    let mut args = args
-        .into_iter()
-        .map(|arg| eval(env.clone(), arg))
-        .collect::<EvalResult<Vec<AST>>>()?
-        .into_iter();
-    let env = Env::with_scope(env.clone());
-    while let Some(param) = params.next() {
-        if param == "&" {
-            let param = params.next();
-            if param.is_none() {
-                return Err(String::from("name required after &"));
-            }
-            if params.next().is_some() {
-                return Err(String::from("Only one param can be bound as rest"));
-            }
-            env.borrow_mut().set(
-                param.unwrap(),
-                ListLike(Listy::List(args.collect::<Vec<_>>())),
-            )?;
-            break;
-        }
-        // unwrap is safe because we know there's <= params than args
-        let arg = args.next().unwrap();
-        env.borrow_mut().set(param, arg)?;
-    }
-    let result = eval(env.clone(), *body);
-    result
-}
-
 pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
     let mut program = program;
     let mut env = env;
@@ -172,7 +133,51 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
                             let thing = env.borrow().get(&s)?;
                             match thing {
                                 Closure(val) => return val.0(env.clone(), Box::new(evaled)),
-                                Lambda(l) => return eval_apply_fn(l, evaled.collect::<Vec<_>>()),
+                                Lambda(l) => {
+                                    let LambdaVal {
+                                        body,
+                                        env: lambda_env,
+                                        params,
+                                    } = l;
+                                    let has_rest = params.iter().find(|p| *p == "&").is_some();
+                                    let args = evaled.collect::<Vec<_>>();
+                                    if !has_rest && params.len() != args.len() {
+                                        return Err(format!("wrong number of args"));
+                                    }
+                                    if has_rest && params.len() - 2 > args.len() {
+                                        return Err(format!("wrong number of args rest"));
+                                    }
+                                    let mut params = params.into_iter();
+                                    let mut args = args
+                                        .into_iter()
+                                        .map(|arg| eval(lambda_env.clone(), arg))
+                                        .collect::<EvalResult<Vec<AST>>>()?
+                                        .into_iter();
+                                    while let Some(param) = params.next() {
+                                        if param == "&" {
+                                            let param = params.next();
+                                            if param.is_none() {
+                                                return Err(String::from("name required after &"));
+                                            }
+                                            if params.next().is_some() {
+                                                return Err(String::from(
+                                                    "Only one param can be bound as rest",
+                                                ));
+                                            }
+                                            lambda_env.borrow_mut().set(
+                                                param.unwrap(),
+                                                ListLike(Listy::List(args.collect::<Vec<_>>())),
+                                            )?;
+                                            break;
+                                        }
+                                        // unwrap is safe because we know there's <= params than args
+                                        let arg = args.next().unwrap();
+                                        lambda_env.borrow_mut().set(param, arg)?;
+                                    }
+                                    program = *body;
+                                    env = lambda_env.clone();
+                                    continue 'eval_loop;
+                                }
                                 _ => return Err(format!("Env value: {} is not a closure", thing)),
                             }
                         }
@@ -181,7 +186,51 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
                             let contents = std::iter::once(first).chain(rest).collect::<Vec<_>>();
                             return eval(env.clone(), ListLike(Listy::List(contents)));
                         }
-                        Lambda(l) => return eval_apply_fn(l, rest.collect::<Vec<_>>()),
+                        Lambda(l) => {
+                            let LambdaVal {
+                                body,
+                                env: lambda_env,
+                                params,
+                            } = l;
+                            let has_rest = params.iter().find(|p| *p == "&").is_some();
+                            let args = rest.collect::<Vec<_>>();
+                            if !has_rest && params.len() != args.len() {
+                                return Err(format!("wrong number of args"));
+                            }
+                            if has_rest && params.len() - 2 > args.len() {
+                                return Err(format!("wrong number of args rest"));
+                            }
+                            let mut params = params.into_iter();
+                            let mut args = args
+                                .into_iter()
+                                .map(|arg| eval(lambda_env.clone(), arg))
+                                .collect::<EvalResult<Vec<AST>>>()?
+                                .into_iter();
+                            while let Some(param) = params.next() {
+                                if param == "&" {
+                                    let param = params.next();
+                                    if param.is_none() {
+                                        return Err(String::from("name required after &"));
+                                    }
+                                    if params.next().is_some() {
+                                        return Err(String::from(
+                                            "Only one param can be bound as rest",
+                                        ));
+                                    }
+                                    lambda_env.borrow_mut().set(
+                                        param.unwrap(),
+                                        ListLike(Listy::List(args.collect::<Vec<_>>())),
+                                    )?;
+                                    break;
+                                }
+                                // unwrap is safe because we know there's <= params than args
+                                let arg = args.next().unwrap();
+                                lambda_env.borrow_mut().set(param, arg)?;
+                            }
+                            program = *body;
+                            env = lambda_env.clone();
+                            continue 'eval_loop;
+                        }
                         a => return Err(format!("not implemented: {}", a.typee())),
                     }
                 }
