@@ -77,7 +77,7 @@ fn if_false_only_eval_second() {
 #[test]
 fn if_false_no_third_return_nil() {
     let actual = run_program("(if false 1)").unwrap();
-    assert_eq!(actual, AST::nil())
+    assert_eq!(actual, AST::m_nil())
 }
 
 #[test]
@@ -129,7 +129,7 @@ fn is_empty() {
 #[test]
 fn do_empty() {
     let actual = run_program("(do)").unwrap();
-    assert_eq!(actual, AST::nil());
+    assert_eq!(actual, AST::m_nil());
 }
 
 #[test]

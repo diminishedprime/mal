@@ -1,3 +1,7 @@
+mod make;
+#[cfg(test)]
+mod tests;
+
 use crate::eval::env::Env;
 use crate::eval::EvalResult;
 use core::fmt::Debug;
@@ -50,38 +54,6 @@ pub fn vec_of(v: Vec<AST>) -> AST {
 }
 
 impl AST {
-    pub fn m_lambda(env: Rc<RefCell<Env>>, params: Vec<String>, body: Box<AST>) -> AST {
-        AST::Lambda(LambdaVal { env, params, body })
-    }
-    pub fn m_string(s: &str) -> AST {
-        AST::LString(s.to_string())
-    }
-    pub fn m_boolean(b: bool) -> AST {
-        AST::Boolean(b)
-    }
-    pub fn m_false() -> AST {
-        AST::Boolean(false)
-    }
-
-    pub fn m_double(d: f64) -> AST {
-        AST::Double(d)
-    }
-    pub fn m_map(c: Vec<AST>) -> AST {
-        AST::Map(c)
-    }
-
-    pub fn m_list(d: Vec<AST>) -> AST {
-        AST::ListLike(Listy::List(d))
-    }
-
-    pub fn m_symbol(s: &str) -> AST {
-        AST::Symbol(s.to_string())
-    }
-
-    pub fn nil() -> AST {
-        AST::Nil
-    }
-
     pub fn typee(&self) -> String {
         match self {
             AST::ListLike(_) => String::from("list"),
@@ -240,36 +212,5 @@ impl Display for Listy {
                 write!(f, ")")
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    use AST::*;
-
-    #[test]
-    fn display_double() {
-        let actual = Double(1.23);
-        assert_eq!(format!("{}", actual), String::from("1.23"));
-    }
-
-    #[test]
-    fn display_symbol() {
-        let actual = Symbol(String::from("abc"));
-        assert_eq!(format!("{}", actual), String::from("abc"));
-    }
-
-    #[test]
-    fn display_list() {
-        let actual = list_of(vec![Symbol(String::from("abc")), Double(1.23)]);
-        assert_eq!(format!("{}", actual), String::from("(abc 1.23)"));
-    }
-
-    #[test]
-    fn display_keyword() {
-        let actual = Keyword(String::from("abc"));
-        assert_eq!(format!("{}", actual), String::from(":abc"));
     }
 }
