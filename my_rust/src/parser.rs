@@ -237,6 +237,7 @@ pub fn parse(input: &str) -> EvalResult<AST> {
 #[cfg(test)]
 mod tests {
     use super::AST::Double;
+    use super::AST::LString;
     use super::AST::Map;
     use super::AST::Symbol;
     use super::*;
@@ -250,6 +251,12 @@ mod tests {
             let actual = parse(key).unwrap();
             assert_eq!(actual, Symbol(key.to_string()))
         });
+    }
+
+    #[test]
+    fn parse_string() {
+        let actual = parse("\"\"").unwrap();
+        assert_eq!(actual, LString("".to_string()));
     }
 
     #[test]
