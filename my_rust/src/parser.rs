@@ -107,7 +107,7 @@ fn optional_whitespace(i: &str) -> IResult<&str, Option<&str>> {
 }
 
 fn whitespace(i: &str) -> IResult<&str, &str> {
-    is_a(" ,")(i)
+    is_a(" ,\n")(i)
 }
 
 fn quote(i: &str) -> IResult<&str, AST> {
@@ -208,7 +208,7 @@ mod tests {
 
     #[test]
     fn parse_env_symbol_names() {
-        let env = Env::new();
+        let env = Env::new().unwrap();
         let map = &env.borrow().env;
         map.keys().for_each(|key| {
             let actual = parse(key).unwrap();

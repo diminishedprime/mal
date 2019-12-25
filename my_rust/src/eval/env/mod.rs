@@ -1,4 +1,6 @@
 mod standard_library;
+#[cfg(test)]
+mod tests;
 pub mod util;
 
 use crate::ast::SymbolVal;
@@ -15,11 +17,22 @@ pub struct Env {
 }
 
 impl Env {
-    pub fn new() -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(Env {
+    pub fn new() -> EvalResult<Rc<RefCell<Self>>> {
+        let env = Rc::new(RefCell::new(Env {
             env: standard_library::with_standard_library(),
             parent: None,
-        }))
+        }));
+        let add_to_ns = crate::parser::parse(
+            r#"
+(eval
+  (read-string
+    (slurp "./stdlib/env.mal")))
+"#,
+        )?;
+        println!("{}", add_to_ns);
+        let result = crate::eval::eval(env.clone(), add_to_ns)?;
+        println!("{}", result);
+        Ok(env)
     }
 
     pub fn keys(&self) -> Vec<String> {

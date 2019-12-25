@@ -10,7 +10,13 @@ use eval::env;
 use eval::EvalResult;
 
 pub fn repl() -> EvalResult<()> {
-    let env = env::Env::new();
+    let env = env::Env::new()?;
+    eval::eval(
+        env.clone(),
+        parser::parse(
+            "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))",
+        )?,
+    )?;
     loop {
         let loop_result = read::read("user> ")
             .and_then(|read_val| parser::parse(&read_val))

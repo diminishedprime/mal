@@ -19,7 +19,7 @@ fn nil() -> AST {
 
 fn run_program(program: &str) -> EvalResult<AST> {
     let program = parse(program)?;
-    eval(Env::new(), program)
+    eval(Env::new()?, program)
 }
 
 #[test]
