@@ -2,10 +2,6 @@ use crate::ast::list_of;
 use crate::ast::ClosureVal;
 use crate::ast::SymbolVal;
 use crate::ast::AST;
-use crate::ast::AST::Boolean;
-use crate::ast::AST::Closure;
-use crate::ast::AST::Double;
-use crate::ast::AST::LString;
 use crate::eval::env::util;
 use crate::eval::env::Env;
 use crate::eval::eval;
@@ -18,33 +14,33 @@ use std::rc::Rc;
 
 pub fn with_standard_library() -> HashMap<SymbolVal, AST> {
     hashmap! {
-        String::from("+") => Closure(ClosureVal(Rc::new(plus))),
-        String::from("*") => Closure(ClosureVal(Rc::new(multiply))),
-        String::from("/") => Closure(ClosureVal(Rc::new(divide))),
-        String::from("-") => Closure(ClosureVal(Rc::new(subtract))),
-        String::from("def!") => Closure(ClosureVal(Rc::new(define))),
-        String::from("=") => Closure(ClosureVal(Rc::new(eq))),
-        String::from("list") => Closure(ClosureVal(Rc::new(list))),
-        String::from("list?") => Closure(ClosureVal(Rc::new(is_list))),
-        String::from("empty?") => Closure(ClosureVal(Rc::new(is_empty))),
-        String::from("count") => Closure(ClosureVal(Rc::new(count))),
-        String::from("str") => Closure(ClosureVal(Rc::new(strr))),
-        String::from("pr-str") => Closure(ClosureVal(Rc::new(pr_strr))),
-        String::from("println") => Closure(ClosureVal(Rc::new(print_ln))),
-        String::from("prn") => Closure(ClosureVal(Rc::new(prn))),
-        String::from("not") => Closure(ClosureVal(Rc::new(not))),
-        String::from("<") => Closure(ClosureVal(Rc::new(lt))),
-        String::from("<=") => Closure(ClosureVal(Rc::new(lte))),
-        String::from(">") => Closure(ClosureVal(Rc::new(gt))),
-        String::from(">=") => Closure(ClosureVal(Rc::new(gte))),
-        String::from("read-string") => Closure(ClosureVal(Rc::new(read_string))),
-        String::from("eval") => Closure(ClosureVal(Rc::new(lib_eval))),
-        String::from("slurp") => Closure(ClosureVal(Rc::new(slurp))),
+        String::from("+") => AST::Closure(ClosureVal(Rc::new(plus))),
+        String::from("*") => AST::Closure(ClosureVal(Rc::new(multiply))),
+        String::from("/") => AST::Closure(ClosureVal(Rc::new(divide))),
+        String::from("-") => AST::Closure(ClosureVal(Rc::new(subtract))),
+        String::from("def!") => AST::Closure(ClosureVal(Rc::new(define))),
+        String::from("=") => AST::Closure(ClosureVal(Rc::new(eq))),
+        String::from("list") => AST::Closure(ClosureVal(Rc::new(list))),
+        String::from("list?") => AST::Closure(ClosureVal(Rc::new(is_list))),
+        String::from("empty?") => AST::Closure(ClosureVal(Rc::new(is_empty))),
+        String::from("count") => AST::Closure(ClosureVal(Rc::new(count))),
+        String::from("str") => AST::Closure(ClosureVal(Rc::new(strr))),
+        String::from("pr-str") => AST::Closure(ClosureVal(Rc::new(pr_strr))),
+        String::from("println") => AST::Closure(ClosureVal(Rc::new(print_ln))),
+        String::from("prn") => AST::Closure(ClosureVal(Rc::new(prn))),
+        String::from("not") => AST::Closure(ClosureVal(Rc::new(not))),
+        String::from("<") => AST::Closure(ClosureVal(Rc::new(lt))),
+        String::from("<=") => AST::Closure(ClosureVal(Rc::new(lte))),
+        String::from(">") => AST::Closure(ClosureVal(Rc::new(gt))),
+        String::from(">=") => AST::Closure(ClosureVal(Rc::new(gte))),
+        String::from("read-string") => AST::Closure(ClosureVal(Rc::new(read_string))),
+        String::from("eval") => AST::Closure(ClosureVal(Rc::new(lib_eval))),
+        String::from("slurp") => AST::Closure(ClosureVal(Rc::new(slurp))),
     }
 }
 
 pub fn plus(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
-    Ok(Double(
+    Ok(AST::m_double(
         args.map(AST::unwrap_double)
             .collect::<EvalResult<Vec<_>>>()?
             .into_iter()
@@ -53,7 +49,7 @@ pub fn plus(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<
 }
 
 pub fn multiply(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
-    Ok(Double(
+    Ok(AST::m_double(
         args.map(AST::unwrap_double)
             .collect::<EvalResult<Vec<_>>>()?
             .into_iter()
@@ -70,9 +66,9 @@ pub fn divide(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResul
         .into_iter()
         .peekable();
     if rest.peek().is_none() {
-        Ok(Double(1.0 / first))
+        Ok(AST::m_double(1.0 / first))
     } else {
-        Ok(Double(rest.fold(first, |acc, arg| acc / arg)))
+        Ok(AST::m_double(rest.fold(first, |acc, arg| acc / arg)))
     }
 }
 
@@ -85,9 +81,9 @@ pub fn subtract(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalRes
         .into_iter()
         .peekable();
     if rest.peek().is_none() {
-        Ok(Double(-first))
+        Ok(AST::m_double(-first))
     } else {
-        Ok(Double(rest.fold(first, |acc, arg| acc - arg)))
+        Ok(AST::m_double(rest.fold(first, |acc, arg| acc - arg)))
     }
 }
 
@@ -100,7 +96,7 @@ pub fn define(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalRes
 
 pub fn eq(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let (first, rest) = util::one_or_more_args("=", args)?;
-    Ok(Boolean(rest.fold(true, |acc, next: AST| {
+    Ok(AST::m_boolean(rest.fold(true, |acc, next: AST| {
         if acc == false {
             false
         } else {
@@ -115,18 +111,18 @@ pub fn list(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<
 
 pub fn is_list(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let arg = util::one_arg("list?", args)?;
-    Ok(Boolean(arg.is_list()))
+    Ok(AST::m_boolean(arg.is_list()))
 }
 
 pub fn is_empty(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let arg = util::one_arg("empty?", args)?;
     let contents = arg.unwrap_list_like()?;
-    Ok(Boolean(contents.is_empty()))
+    Ok(AST::m_boolean(contents.is_empty()))
 }
 
 pub fn count(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let arg = util::one_arg("empty?", args)?;
-    Ok(Double(if arg.is_nil() {
+    Ok(AST::m_double(if arg.is_nil() {
         0.0
     } else {
         let arg = arg.unwrap_list_like()?;
@@ -166,13 +162,13 @@ pub fn prn(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<A
 
 pub fn not(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let arg = util::one_arg("not", args)?;
-    Ok(AST::Boolean(arg.is_falsy()))
+    Ok(AST::m_boolean(arg.is_falsy()))
 }
 
 pub fn lt(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let (first, rest) = util::one_or_more_args("<", args)?;
     let mut last: f64 = first.unwrap_double()?;
-    Ok(AST::Boolean(rest.fold(
+    Ok(AST::m_boolean(rest.fold(
         Ok(true),
         |acc: EvalResult<bool>, next| {
             let acc = acc?;
@@ -187,7 +183,7 @@ pub fn lt(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AS
 pub fn lte(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let (first, rest) = util::one_or_more_args("<=", args)?;
     let mut last: f64 = first.unwrap_double()?;
-    Ok(AST::Boolean(rest.fold(
+    Ok(AST::m_boolean(rest.fold(
         Ok(true),
         |acc: EvalResult<bool>, next| {
             let acc = acc?;
@@ -202,7 +198,7 @@ pub fn lte(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<A
 pub fn gt(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let (first, rest) = util::one_or_more_args(">", args)?;
     let mut last: f64 = first.unwrap_double()?;
-    Ok(AST::Boolean(rest.fold(
+    Ok(AST::m_boolean(rest.fold(
         Ok(true),
         |acc: EvalResult<bool>, next| {
             let acc = acc?;
@@ -217,7 +213,7 @@ pub fn gt(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AS
 pub fn gte(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let (first, rest) = util::one_or_more_args(">=", args)?;
     let mut last: f64 = first.unwrap_double()?;
-    Ok(AST::Boolean(rest.fold(
+    Ok(AST::m_boolean(rest.fold(
         Ok(true),
         |acc: EvalResult<bool>, next| {
             let acc = acc?;
@@ -245,5 +241,5 @@ pub fn slurp(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult
     let arg = util::one_arg("eval", args)?;
     let file_name = arg.unwrap_string()?;
     let s = std::fs::read_to_string(file_name).map_err(|e| format!("{:?}", e))?;
-    Ok(LString(s))
+    Ok(AST::m_string(&s))
 }

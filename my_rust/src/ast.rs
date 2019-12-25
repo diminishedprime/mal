@@ -5,13 +5,6 @@ use std::cell::RefCell;
 use std::fmt;
 use std::fmt::Display;
 use std::rc::Rc;
-use AST::Boolean;
-use AST::Double;
-use AST::LString;
-use AST::Lambda;
-use AST::ListLike;
-use AST::Nil;
-use AST::Symbol;
 
 pub type SymbolVal = String;
 
@@ -57,6 +50,12 @@ pub fn vec_of(v: Vec<AST>) -> AST {
 }
 
 impl AST {
+    pub fn m_string(s: &str) -> AST {
+        AST::LString(s.to_string())
+    }
+    pub fn m_boolean(b: bool) -> AST {
+        AST::Boolean(b)
+    }
     pub fn m_false() -> AST {
         AST::Boolean(false)
     }
@@ -94,35 +93,35 @@ impl AST {
 
     pub fn unwrap_bool(self) -> EvalResult<bool> {
         match self {
-            Boolean(b) => Ok(b),
+            AST::Boolean(b) => Ok(b),
             a => Err(format!("{} is not a boolean", a)),
         }
     }
 
     pub fn unwrap_double(self) -> EvalResult<f64> {
         match self {
-            Double(d) => Ok(d),
+            AST::Double(d) => Ok(d),
             a => Err(format!("{} is not a double", a)),
         }
     }
 
     pub fn unwrap_symbol(self) -> EvalResult<String> {
         match self {
-            Symbol(s) => Ok(s),
+            AST::Symbol(s) => Ok(s),
             a => Err(format!("{} is not a symbol", a)),
         }
     }
 
     pub fn unwrap_string(self) -> EvalResult<String> {
         match self {
-            LString(s) => Ok(s),
+            AST::LString(s) => Ok(s),
             a => Err(format!("{} is not a string", a)),
         }
     }
 
     pub fn unwrap_list(self) -> EvalResult<Vec<AST>> {
         match self {
-            ListLike(s) => match s {
+            AST::ListLike(s) => match s {
                 Listy::List(l) => Ok(l),
                 a => Err(format!("{} is not a List or Vector", a)),
             },
@@ -132,7 +131,7 @@ impl AST {
 
     pub fn unwrap_list_like(self) -> EvalResult<Vec<AST>> {
         match self {
-            ListLike(s) => Ok(match s {
+            AST::ListLike(s) => Ok(match s {
                 Listy::List(l) | Listy::Vector(l) => l,
             }),
             a => Err(format!("{} is not a List or Vector", a)),
@@ -141,14 +140,14 @@ impl AST {
 
     pub fn is_nil(&self) -> bool {
         match self {
-            Nil => true,
+            AST::Nil => true,
             _ => false,
         }
     }
 
     pub fn is_list(&self) -> bool {
         match self {
-            ListLike(Listy::List(_)) => true,
+            AST::ListLike(Listy::List(_)) => true,
             _ => false,
         }
     }
@@ -163,14 +162,14 @@ impl AST {
 
     pub fn is_lambda(&self) -> bool {
         match self {
-            Lambda(_) => true,
+            AST::Lambda(_) => true,
             _ => false,
         }
     }
 
     pub fn is_falsy(&self) -> bool {
         match self {
-            Nil | Boolean(false) => true,
+            AST::Nil | AST::Boolean(false) => true,
             _ => false,
         }
     }
