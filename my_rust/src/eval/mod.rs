@@ -7,15 +7,10 @@ use crate::ast::vec_of;
 use crate::ast::LambdaVal;
 use crate::ast::Listy;
 use crate::ast::AST;
-use crate::ast::AST::ListLike;
 use env::util;
 use env::Env;
 use std::cell::RefCell;
 use std::rc::Rc;
-use AST::Closure;
-use AST::Lambda;
-use AST::Map;
-use AST::Symbol;
 
 pub type EvalResult<T> = Result<T, String>;
 
@@ -37,11 +32,7 @@ fn eval_fn_star(env: Rc<RefCell<Env>>, forms: impl Iterator<Item = AST>) -> Eval
         .map(|item| item.unwrap_symbol())
         .collect::<EvalResult<Vec<String>>>()?;
     let body = Box::new(body);
-    Ok(Lambda(LambdaVal {
-        env: env.clone(),
-        params,
-        body,
-    }))
+    Ok(AST::m_lambda(env.clone(), params, body))
 }
 
 pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
@@ -49,22 +40,23 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
     let mut env = env;
     'eval_loop: loop {
         match program {
-            Symbol(s) => return env.borrow().get(&s),
-            Map(m) => {
-                return Ok(Map(m
-                    .into_iter()
-                    .map(|part| eval(env.clone(), part))
-                    .collect::<Result<_, _>>()?))
+            AST::Symbol(s) => return env.borrow().get(&s),
+            AST::Map(m) => {
+                return Ok(AST::Map(
+                    m.into_iter()
+                        .map(|part| eval(env.clone(), part))
+                        .collect::<Result<_, _>>()?,
+                ))
             }
-            Closure(_) => return Err(String::from("not implemented")),
-            ListLike(l) => match l {
+            AST::Closure(_) => return Err(String::from("not implemented")),
+            AST::ListLike(l) => match l {
                 Listy::List(l) => {
                     if l.len() == 0 {
                         return Ok(list_of(vec![]));
                     }
                     let (first, rest) = split_fn_and_arg(l)?;
                     match first {
-                        Symbol(s) => {
+                        AST::Symbol(s) => {
                             let evaled =
                                 match s.as_ref() {
                                     "if" => {
@@ -132,8 +124,8 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
                                 };
                             let thing = env.borrow().get(&s)?;
                             match thing {
-                                Closure(val) => return val.0(env.clone(), Box::new(evaled)),
-                                Lambda(l) => {
+                                AST::Closure(val) => return val.0(env.clone(), Box::new(evaled)),
+                                AST::Lambda(l) => {
                                     let LambdaVal {
                                         body,
                                         env: lambda_env,
@@ -166,7 +158,9 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
                                             }
                                             lambda_env.borrow_mut().set(
                                                 param.unwrap(),
-                                                ListLike(Listy::List(args.collect::<Vec<_>>())),
+                                                AST::ListLike(Listy::List(
+                                                    args.collect::<Vec<_>>(),
+                                                )),
                                             )?;
                                             break;
                                         }
@@ -181,12 +175,12 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
                                 _ => return Err(format!("Env value: {} is not a closure", thing)),
                             }
                         }
-                        list @ ListLike(Listy::List(_)) => {
+                        list @ AST::ListLike(Listy::List(_)) => {
                             let first = eval(env.clone(), list)?;
                             let contents = std::iter::once(first).chain(rest).collect::<Vec<_>>();
-                            return eval(env.clone(), ListLike(Listy::List(contents)));
+                            return eval(env.clone(), AST::ListLike(Listy::List(contents)));
                         }
-                        Lambda(l) => {
+                        AST::Lambda(l) => {
                             let LambdaVal {
                                 body,
                                 env: lambda_env,
@@ -219,7 +213,7 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
                                     }
                                     lambda_env.borrow_mut().set(
                                         param.unwrap(),
-                                        ListLike(Listy::List(args.collect::<Vec<_>>())),
+                                        AST::ListLike(Listy::List(args.collect::<Vec<_>>())),
                                     )?;
                                     break;
                                 }

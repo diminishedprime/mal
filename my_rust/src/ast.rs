@@ -50,6 +50,9 @@ pub fn vec_of(v: Vec<AST>) -> AST {
 }
 
 impl AST {
+    pub fn m_lambda(env: Rc<RefCell<Env>>, params: Vec<String>, body: Box<AST>) -> AST {
+        AST::Lambda(LambdaVal { env, params, body })
+    }
     pub fn m_string(s: &str) -> AST {
         AST::LString(s.to_string())
     }
