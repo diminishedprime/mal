@@ -23,6 +23,12 @@ fn run_program(program: &str) -> EvalResult<AST> {
 }
 
 #[test]
+fn fn_star_nested_closures() {
+    let actual = run_program("( ( (fn* (a) (fn* (b) (+ a b))) 5) 7)").unwrap();
+    assert_eq!(actual, m_double(12.0));
+}
+
+#[test]
 fn fn_star_with_and_more_empty_more() {
     let actual = run_program("((fn* (a & more) (count more)) 1)").unwrap();
     assert_eq!(actual, m_double(0.0));

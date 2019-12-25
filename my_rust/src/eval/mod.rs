@@ -59,7 +59,7 @@ fn eval_apply_fn(c: LambdaVal, args: Vec<AST>) -> EvalResult<AST> {
         .map(|arg| eval(env.clone(), arg))
         .collect::<EvalResult<Vec<AST>>>()?
         .into_iter();
-    env.borrow_mut().new_local();
+    let env = Env::with_scope(env.clone());
     while let Some(param) = params.next() {
         if param == "&" {
             let param = params.next();
@@ -80,7 +80,6 @@ fn eval_apply_fn(c: LambdaVal, args: Vec<AST>) -> EvalResult<AST> {
         env.borrow_mut().set(param, arg)?;
     }
     let result = eval(env.clone(), *body);
-    env.borrow_mut().clear_local();
     result
 }
 

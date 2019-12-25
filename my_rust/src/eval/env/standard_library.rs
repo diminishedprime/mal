@@ -15,8 +15,8 @@ use im::hashmap;
 use im::HashMap;
 use std::rc::Rc;
 
-pub fn with_standard_library() -> Vec<HashMap<SymbolVal, AST>> {
-    vec![hashmap! {
+pub fn with_standard_library() -> HashMap<SymbolVal, AST> {
+    hashmap! {
         String::from("+") => Closure(ClosureVal(Rc::new(plus))),
         String::from("*") => Closure(ClosureVal(Rc::new(multiply))),
         String::from("/") => Closure(ClosureVal(Rc::new(divide))),
@@ -39,7 +39,7 @@ pub fn with_standard_library() -> Vec<HashMap<SymbolVal, AST>> {
         String::from("<=") => Closure(ClosureVal(Rc::new(lte))),
         String::from(">") => Closure(ClosureVal(Rc::new(gt))),
         String::from(">=") => Closure(ClosureVal(Rc::new(gte))),
-    }]
+    }
 }
 
 pub fn plus(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
@@ -129,9 +129,8 @@ pub fn let_star_helper(
 pub fn let_star(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let (bindings, exprs) = util::one_or_more_args("let*", args)?;
     let bindings = bindings.unwrap_list_like()?.into_iter();
-    env.borrow_mut().new_local();
-    let result = let_star_helper(env.clone(), bindings, exprs);
-    env.borrow_mut().clear_local();
+    let env = Env::with_scope(env.clone());
+    let result = let_star_helper(env, bindings, exprs);
     result
 }
 

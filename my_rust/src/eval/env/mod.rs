@@ -6,67 +6,55 @@ use crate::ast::AST;
 use crate::eval::EvalResult;
 use im::hashmap;
 use im::HashMap;
-use itertools::Itertools;
 use std::cell::RefCell;
-use std::fmt;
-use std::fmt::Display;
 use std::rc::Rc;
 
 pub struct Env {
-    pub envs: Vec<HashMap<SymbolVal, AST>>,
-}
-
-impl Display for Env {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.envs.len() == 1 {
-            return write!(f, "");
-        }
-        for env in self.envs.iter().dropping(1) {
-            for (k, v) in env.iter() {
-                writeln!(f, "{} -> {},", k, v.typee())?
-            }
-        }
-        Ok(())
-    }
+    pub env: HashMap<SymbolVal, AST>,
+    pub parent: Option<Rc<RefCell<Env>>>,
 }
 
 impl Env {
     pub fn new() -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Env {
-            envs: standard_library::with_standard_library(),
+            env: standard_library::with_standard_library(),
+            parent: None,
         }))
     }
 
+    pub fn keys(&self) -> Vec<String> {
+        let parent_keys: Vec<String> = match &self.parent {
+            Some(env) => env.clone().borrow().keys(),
+            None => vec![],
+        };
+        self.env
+            .keys()
+            .map(String::from)
+            .chain(parent_keys.into_iter())
+            .collect::<Vec<String>>()
+    }
+
     pub fn get(&self, key: &SymbolVal) -> EvalResult<AST> {
-        let mut envs = self.envs.iter().rev();
-        while let Some(env) = envs.next() {
-            match env.get(key) {
-                Some(val) => return Ok(val.clone()),
-                None => continue,
-            }
+        match self.env.get(key) {
+            Some(val) => return Ok(val.clone()),
+            None => match &self.parent {
+                Some(env) => env.borrow().get(&key),
+                None => Err(format!("Key: {} is not in the enviroment.", key)),
+            },
         }
-        return Err(format!("Key: {} is not in the enviroment.", key));
-    }
-
-    // TODO - the enviroment management could just be a macro.
-    pub fn new_local(&mut self) {
-        self.envs.push(hashmap![])
-    }
-
-    pub fn clear_local(&mut self) {
-        if self.envs.len() == 1 {
-            panic!("cannot clear the last environment. You probably forgot to call new_local before calling this method.")
-        }
-        self.envs.remove(self.envs.len() - 1);
     }
 
     pub fn set(&mut self, key: SymbolVal, value: AST) -> EvalResult<AST> {
-        let len = self.envs.len();
-        // TODO - is there a way to avoid this unsafe?
-        unsafe {
-            let env = self.envs.get_unchecked_mut(len - 1);
-            env.insert(key.clone(), value.clone());
-        }
+        // TODO - there should be a special set for def that goes up to the topmost level.
+        self.env.insert(key.clone(), value.clone());
         Ok(value)
+    }
+
+    pub fn with_scope(current_scope: Rc<RefCell<Self>>) -> Rc<RefCell<Self>> {
+        let new_scope = Rc::new(RefCell::new(Env {
+            env: hashmap![],
+            parent: Some(current_scope.clone()),
+        }));
+        new_scope
     }
 }
