@@ -34,6 +34,7 @@ pub fn with_standard_library() -> Vec<HashMap<SymbolVal, AST>> {
         String::from("pr-str") => Closure(ClosureVal(Rc::new(pr_strr))),
         String::from("println") => Closure(ClosureVal(Rc::new(print_ln))),
         String::from("prn") => Closure(ClosureVal(Rc::new(prn))),
+        String::from("not") => Closure(ClosureVal(Rc::new(not))),
     }]
 }
 
@@ -197,4 +198,9 @@ pub fn print_ln(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalRes
 pub fn prn(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     println!("{}", pr_seq(args, true, "", "", ""));
     Ok(AST::Nil)
+}
+
+pub fn not(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
+    let arg = util::one_arg("not", args)?;
+    Ok(AST::Boolean(arg.is_falsy()))
 }

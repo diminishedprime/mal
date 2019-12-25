@@ -71,6 +71,13 @@ impl AST {
         }
     }
 
+    pub fn unwrap_bool(self) -> EvalResult<bool> {
+        match self {
+            Boolean(b) => Ok(b),
+            a => Err(format!("{} is not a boolean", a)),
+        }
+    }
+
     pub fn unwrap_double(self) -> EvalResult<f64> {
         match self {
             Double(d) => Ok(d),
