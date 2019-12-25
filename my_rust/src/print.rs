@@ -5,6 +5,7 @@ use crate::ast::AST::Closure;
 use crate::ast::AST::Double;
 use crate::ast::AST::Keyword;
 use crate::ast::AST::LString;
+use crate::ast::AST::Lambda;
 use crate::ast::AST::ListLike;
 use crate::ast::AST::Map;
 use crate::ast::AST::Nil;
@@ -63,6 +64,7 @@ impl AST {
             Map(_contents) => String::from("not implemented"),
             Keyword(kw) => format!(":{}", kw),
             Closure(f) => format!("#<fn {:p}>", f.0),
+            Lambda(_) => format!("#<lambda>"),
         }
     }
 }
@@ -102,6 +104,7 @@ impl Display for AST {
             //     write!(f, ")")
             // }
             Closure(closure_val) => write!(f, "fn @{:p}", &closure_val),
+            Lambda(_) => write!(f, "#<lambda>"),
         }
     }
 }

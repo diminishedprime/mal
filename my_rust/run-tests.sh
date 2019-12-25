@@ -2,6 +2,8 @@
 
 set -ex
 
+cargo build --release
+
 cd ..
 
 make "test^my_rust^step0"

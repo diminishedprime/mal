@@ -7,6 +7,7 @@ use std::fmt::Display;
 use std::rc::Rc;
 use AST::Boolean;
 use AST::Double;
+use AST::Lambda;
 use AST::ListLike;
 use AST::Nil;
 use AST::Symbol;
@@ -17,6 +18,13 @@ pub type SymbolVal = String;
 pub struct ClosureVal(
     pub Rc<dyn Fn(Rc<RefCell<Env>>, Box<dyn Iterator<Item = AST>>) -> EvalResult<AST>>,
 );
+
+#[derive(Clone)]
+pub struct LambdaVal {
+    pub body: Box<AST>,
+    pub env: Rc<RefCell<Env>>,
+    pub params: Vec<String>,
+}
 
 #[derive(Clone)]
 pub enum Listy {
@@ -34,6 +42,7 @@ pub enum AST {
     Double(f64),
     LString(String),
     Closure(ClosureVal),
+    Lambda(LambdaVal),
     Boolean(bool),
     Nil, // Int(i64),
 }
@@ -47,6 +56,21 @@ pub fn vec_of(v: Vec<AST>) -> AST {
 }
 
 impl AST {
+    pub fn typee(&self) -> String {
+        match self {
+            AST::ListLike(_) => String::from("list"),
+            AST::Map(_) => String::from("map"),
+            AST::Symbol(_) => String::from("symbol"),
+            AST::Keyword(_) => String::from("keyword"),
+            AST::Double(_) => String::from("double"),
+            AST::LString(_) => String::from("string"),
+            AST::Closure(_) => String::from("closure"),
+            AST::Lambda(_) => String::from("lambda"),
+            AST::Boolean(_) => String::from("boolean"),
+            AST::Nil => String::from("nil"),
+        }
+    }
+
     pub fn unwrap_double(self) -> EvalResult<f64> {
         match self {
             Double(d) => Ok(d),
@@ -87,6 +111,13 @@ impl AST {
         }
     }
 
+    pub fn is_lambda(&self) -> bool {
+        match self {
+            Lambda(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn is_falsy(&self) -> bool {
         match self {
             Nil | Boolean(false) => true,
@@ -103,6 +134,13 @@ impl PartialEq for Listy {
             (Listy::Vector(f), Listy::Vector(s)) => f == s,
             (Listy::List(f), Listy::Vector(s)) => f == s,
         }
+    }
+}
+
+impl PartialEq for LambdaVal {
+    fn eq(&self, _other: &Self) -> bool {
+        // TODO - figure out if there's a good way to compare closures
+        return false;
     }
 }
 

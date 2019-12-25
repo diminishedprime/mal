@@ -19,6 +19,36 @@ fn run_program(program: &str) -> EvalResult<AST> {
 }
 
 #[test]
+fn fn_star_thingy() {
+    let actual = run_program("( (fn* [f x] (f x)) (fn* [a] (+ 1 a)) 7)").unwrap();
+    assert_eq!(actual, m_double(8.0));
+}
+
+#[test]
+fn fn_star_invoked_with_multiple_args() {
+    let actual = run_program("((fn* [a b] (+ a b)) 3 5)").unwrap();
+    assert_eq!(actual, m_double(8.0));
+}
+
+#[test]
+fn fn_star_invoked_with_args() {
+    let actual = run_program("((fn* [a] a) 3)").unwrap();
+    assert_eq!(actual, m_double(3.0));
+}
+
+#[test]
+fn fn_star_invoked_no_args() {
+    let actual = run_program("((fn* [] 3))").unwrap();
+    assert_eq!(actual, m_double(3.0));
+}
+
+#[test]
+fn fn_star_not_invoked() {
+    let actual = run_program("(fn* [a] a)").unwrap();
+    assert_eq!(actual.is_lambda(), true);
+}
+
+#[test]
 fn if_true_only_eval_first() {
     let actual = run_program("(do (if true (def! a 1) (def! a 2)) a)").unwrap();
     assert_eq!(actual, m_double(1.0))

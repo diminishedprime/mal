@@ -1,16 +1,33 @@
 mod standard_library;
-mod util;
+pub mod util;
 
 use crate::ast::SymbolVal;
 use crate::ast::AST;
 use crate::eval::EvalResult;
 use im::hashmap;
 use im::HashMap;
+use itertools::Itertools;
 use std::cell::RefCell;
+use std::fmt;
+use std::fmt::Display;
 use std::rc::Rc;
 
 pub struct Env {
     pub envs: Vec<HashMap<SymbolVal, AST>>,
+}
+
+impl Display for Env {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.envs.len() == 1 {
+            return write!(f, "");
+        }
+        for env in self.envs.iter().dropping(1) {
+            for (k, v) in env.iter() {
+                writeln!(f, "{} -> {},", k, v.typee())?
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Env {
