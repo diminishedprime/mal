@@ -57,6 +57,26 @@ pub fn vec_of(v: Vec<AST>) -> AST {
 }
 
 impl AST {
+    pub fn m_false() -> AST {
+        AST::Boolean(false)
+    }
+
+    pub fn m_double(d: f64) -> AST {
+        AST::Double(d)
+    }
+
+    pub fn m_list(d: Vec<AST>) -> AST {
+        AST::ListLike(Listy::List(d))
+    }
+
+    pub fn m_symbol(s: &str) -> AST {
+        AST::Symbol(s.to_string())
+    }
+
+    pub fn nil() -> AST {
+        AST::Nil
+    }
+
     pub fn typee(&self) -> String {
         match self {
             AST::ListLike(_) => String::from("list"),
