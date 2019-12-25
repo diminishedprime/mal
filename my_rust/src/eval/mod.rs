@@ -47,8 +47,11 @@ fn eval_fn_star(env: Rc<RefCell<Env>>, forms: impl Iterator<Item = AST>) -> Eval
 fn eval_apply_fn(c: LambdaVal, args: Vec<AST>) -> EvalResult<AST> {
     let LambdaVal { body, env, params } = c;
     let has_rest = params.iter().find(|p| *p == "&").is_some();
-    if (!has_rest && params.len() != args.len()) || has_rest && params.len() > args.len() {
+    if !has_rest && params.len() != args.len() {
         return Err(format!("wrong number of args"));
+    }
+    if has_rest && params.len() - 2 > args.len() {
+        return Err(format!("wrong number of args rest"));
     }
     let mut params = params.into_iter();
     let mut args = args
