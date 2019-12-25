@@ -1,15 +1,5 @@
 use crate::ast::Listy;
 use crate::ast::AST;
-use crate::ast::AST::Boolean;
-use crate::ast::AST::Closure;
-use crate::ast::AST::Double;
-use crate::ast::AST::Keyword;
-use crate::ast::AST::LString;
-use crate::ast::AST::Lambda;
-use crate::ast::AST::ListLike;
-use crate::ast::AST::Map;
-use crate::ast::AST::Nil;
-use crate::ast::AST::Symbol;
 use crate::eval::EvalResult;
 use std::fmt;
 use std::fmt::Display;
@@ -54,11 +44,11 @@ impl Listy {
 impl AST {
     pub fn pr_str(&self, print_readably: bool) -> String {
         match self {
-            Nil => String::from("nil"),
-            Boolean(true) => String::from("true"),
-            Boolean(false) => String::from("false"),
-            Double(i) => format!("{}", i),
-            LString(s) => {
+            AST::Nil => String::from("nil"),
+            AST::Boolean(true) => String::from("true"),
+            AST::Boolean(false) => String::from("false"),
+            AST::Double(i) => format!("{}", i),
+            AST::LString(s) => {
                 if s.starts_with("\u{29e}") {
                     format!(":{}", &s[2..])
                 } else if print_readably {
@@ -67,12 +57,12 @@ impl AST {
                     s.clone()
                 }
             }
-            Symbol(s) => s.clone(),
-            ListLike(l) => l.pr_str(print_readably),
-            Map(contents) => pr_seq(contents.clone(), print_readably, "{", "}", " "),
-            Keyword(kw) => format!(":{}", kw),
-            Closure(f) => format!("#<fn {:p}>", f.0),
-            Lambda(_) => format!("#<lambda>"),
+            AST::Symbol(s) => s.clone(),
+            AST::ListLike(l) => l.pr_str(print_readably),
+            AST::Map(contents) => pr_seq(contents.clone(), print_readably, "{", "}", " "),
+            AST::Keyword(kw) => format!(":{}", kw),
+            AST::Closure(f) => format!("#<fn {:p}>", f.0),
+            AST::Lambda(_) => format!("#<lambda>"),
         }
     }
 }
