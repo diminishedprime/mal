@@ -9,6 +9,10 @@ fn m_double(d: f64) -> AST {
     AST::Double(d)
 }
 
+fn m_list(d: Vec<AST>) -> AST {
+    AST::ListLike(Listy::List(d))
+}
+
 fn nil() -> AST {
     AST::Nil
 }
@@ -16,6 +20,15 @@ fn nil() -> AST {
 fn run_program(program: &str) -> EvalResult<AST> {
     let program = parse(program)?;
     eval(Env::new(), program)
+}
+
+#[test]
+fn fn_star_with_and_more() {
+    let actual = run_program("( (fn* [& more] more) 1 2 3)").unwrap();
+    assert_eq!(
+        actual,
+        m_list(vec![m_double(1.0), m_double(2.0), m_double(3.0)])
+    );
 }
 
 #[test]

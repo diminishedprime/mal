@@ -63,7 +63,7 @@ fn list(i: &str) -> IResult<&str, AST> {
 fn special_symbol(i: &str) -> IResult<&str, AST> {
     map(
         alt((
-            terminated(is_a("+*/-="), not(one_of("0123456789"))),
+            terminated(is_a("&+*/-="), not(one_of("0123456789"))),
             tag("empty?"),
         )),
         |c: &str| {

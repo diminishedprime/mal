@@ -46,12 +46,9 @@ fn eval_fn_star(env: Rc<RefCell<Env>>, forms: impl Iterator<Item = AST>) -> Eval
 
 fn eval_apply_fn(c: LambdaVal, args: Vec<AST>) -> EvalResult<AST> {
     let LambdaVal { body, env, params } = c;
-    if params.len() != args.len() {
-        return Err(format!(
-            "wrong number of args. Expected: {}, Actual: {}",
-            params.len(),
-            args.len(),
-        ));
+    let has_rest = params.iter().find(|p| *p == "&").is_some();
+    if (!has_rest && params.len() != args.len()) || has_rest && params.len() > args.len() {
+        return Err(format!("wrong number of args"));
     }
     let mut params = params.into_iter();
     let mut args = args
@@ -60,7 +57,23 @@ fn eval_apply_fn(c: LambdaVal, args: Vec<AST>) -> EvalResult<AST> {
         .collect::<EvalResult<Vec<AST>>>()?
         .into_iter();
     env.borrow_mut().new_local();
-    while let (Some(param), Some(arg)) = (params.next(), args.next()) {
+    while let Some(param) = params.next() {
+        if param == "&" {
+            let param = params.next();
+            if param.is_none() {
+                return Err(String::from("name required after &"));
+            }
+            if params.next().is_some() {
+                return Err(String::from("Only one param can be bound as rest"));
+            }
+            env.borrow_mut().set(
+                param.unwrap(),
+                ListLike(Listy::List(args.collect::<Vec<_>>())),
+            )?;
+            break;
+        }
+        // unwrap is safe because we know there's <= params than args
+        let arg = args.next().unwrap();
         env.borrow_mut().set(param, arg)?;
     }
     let result = eval(env.clone(), *body);
