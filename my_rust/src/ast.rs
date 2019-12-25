@@ -66,6 +66,9 @@ impl AST {
     pub fn m_double(d: f64) -> AST {
         AST::Double(d)
     }
+    pub fn m_map(c: Vec<AST>) -> AST {
+        AST::Map(c)
+    }
 
     pub fn m_list(d: Vec<AST>) -> AST {
         AST::ListLike(Listy::List(d))
