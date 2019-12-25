@@ -79,7 +79,7 @@ fn symbol_char(i: &str) -> IResult<&str, &str> {
 }
 
 fn symbol(i: &str) -> IResult<&str, AST> {
-    let (remaining, first_bits) = alt((alpha1, is_a("+*-?/")))(i)?;
+    let (remaining, first_bits) = alt((alpha1, is_a("+*-?/<>=")))(i)?;
     map(many0(symbol_char), move |rest: Vec<&str>| {
         let mut s = String::new();
         s.push_str(&first_bits);

@@ -35,6 +35,10 @@ pub fn with_standard_library() -> Vec<HashMap<SymbolVal, AST>> {
         String::from("println") => Closure(ClosureVal(Rc::new(print_ln))),
         String::from("prn") => Closure(ClosureVal(Rc::new(prn))),
         String::from("not") => Closure(ClosureVal(Rc::new(not))),
+        String::from("<") => Closure(ClosureVal(Rc::new(lt))),
+        String::from("<=") => Closure(ClosureVal(Rc::new(lte))),
+        String::from(">") => Closure(ClosureVal(Rc::new(gt))),
+        String::from(">=") => Closure(ClosureVal(Rc::new(gte))),
     }]
 }
 
@@ -207,4 +211,64 @@ pub fn prn(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<A
 pub fn not(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let arg = util::one_arg("not", args)?;
     Ok(AST::Boolean(arg.is_falsy()))
+}
+
+pub fn lt(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
+    let (first, rest) = util::one_or_more_args("<", args)?;
+    let mut last: f64 = first.unwrap_double()?;
+    Ok(AST::Boolean(rest.fold(
+        Ok(true),
+        |acc: EvalResult<bool>, next| {
+            let acc = acc?;
+            let next = next.unwrap_double()?;
+            let next_acc = acc && last < next;
+            last = next;
+            Ok(next_acc)
+        },
+    )?))
+}
+
+pub fn lte(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
+    let (first, rest) = util::one_or_more_args("<=", args)?;
+    let mut last: f64 = first.unwrap_double()?;
+    Ok(AST::Boolean(rest.fold(
+        Ok(true),
+        |acc: EvalResult<bool>, next| {
+            let acc = acc?;
+            let next = next.unwrap_double()?;
+            let next_acc = acc && last <= next;
+            last = next;
+            Ok(next_acc)
+        },
+    )?))
+}
+
+pub fn gt(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
+    let (first, rest) = util::one_or_more_args(">", args)?;
+    let mut last: f64 = first.unwrap_double()?;
+    Ok(AST::Boolean(rest.fold(
+        Ok(true),
+        |acc: EvalResult<bool>, next| {
+            let acc = acc?;
+            let next = next.unwrap_double()?;
+            let next_acc = acc && last > next;
+            last = next;
+            Ok(next_acc)
+        },
+    )?))
+}
+
+pub fn gte(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
+    let (first, rest) = util::one_or_more_args(">=", args)?;
+    let mut last: f64 = first.unwrap_double()?;
+    Ok(AST::Boolean(rest.fold(
+        Ok(true),
+        |acc: EvalResult<bool>, next| {
+            let acc = acc?;
+            let next = next.unwrap_double()?;
+            let next_acc = acc && last >= next;
+            last = next;
+            Ok(next_acc)
+        },
+    )?))
 }
