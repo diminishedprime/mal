@@ -7,6 +7,7 @@ use std::fmt::Display;
 use std::rc::Rc;
 use AST::Boolean;
 use AST::Double;
+use AST::LString;
 use AST::Lambda;
 use AST::ListLike;
 use AST::Nil;
@@ -89,6 +90,13 @@ impl AST {
         match self {
             Symbol(s) => Ok(s),
             a => Err(format!("{} is not a symbol", a)),
+        }
+    }
+
+    pub fn unwrap_string(self) -> EvalResult<String> {
+        match self {
+            LString(s) => Ok(s),
+            a => Err(format!("{} is not a string", a)),
         }
     }
 

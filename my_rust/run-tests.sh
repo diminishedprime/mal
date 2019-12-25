@@ -12,3 +12,4 @@ make "test^my_rust^step2"
 make "test^my_rust^step3"
 make "test^my_rust^step4" || true
 make "test^my_rust^step5"
+make "test^my_rust^step6"
