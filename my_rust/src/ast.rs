@@ -133,6 +133,14 @@ impl AST {
         }
     }
 
+    pub fn assert_list(&self) -> EvalResult<()> {
+        if self.is_list() {
+            Ok(())
+        } else {
+            Err(format!("{} is not a list", self.typee()))
+        }
+    }
+
     pub fn is_lambda(&self) -> bool {
         match self {
             Lambda(_) => true,

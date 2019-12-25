@@ -63,6 +63,7 @@ fn special_symbol(i: &str) -> IResult<&str, AST> {
         alt((
             terminated(is_a("&+*/-="), not(one_of("0123456789"))),
             tag("empty?"),
+            tag("eval"),
         )),
         |c: &str| {
             let mut s = String::new();

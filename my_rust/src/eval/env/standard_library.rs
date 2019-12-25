@@ -37,6 +37,7 @@ pub fn with_standard_library() -> HashMap<SymbolVal, AST> {
         String::from(">") => Closure(ClosureVal(Rc::new(gt))),
         String::from(">=") => Closure(ClosureVal(Rc::new(gte))),
         String::from("read-string") => Closure(ClosureVal(Rc::new(read_string))),
+        String::from("eval") => Closure(ClosureVal(Rc::new(lib_eval))),
     }
 }
 
@@ -230,4 +231,10 @@ pub fn read_string(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> Eval
     let arg = util::one_arg("read-string", args)?;
     let arg = arg.unwrap_string()?;
     crate::parser::parse(&arg)
+}
+
+pub fn lib_eval(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
+    let arg = util::one_arg("eval", args)?;
+    arg.assert_list()?;
+    crate::eval::eval(env.clone(), arg)
 }
