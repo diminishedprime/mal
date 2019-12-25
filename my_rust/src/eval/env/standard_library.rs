@@ -5,6 +5,7 @@ use crate::ast::AST;
 use crate::ast::AST::Boolean;
 use crate::ast::AST::Closure;
 use crate::ast::AST::Double;
+use crate::ast::AST::LString;
 use crate::eval::env::util;
 use crate::eval::env::Env;
 use crate::eval::eval;
@@ -38,6 +39,7 @@ pub fn with_standard_library() -> HashMap<SymbolVal, AST> {
         String::from(">=") => Closure(ClosureVal(Rc::new(gte))),
         String::from("read-string") => Closure(ClosureVal(Rc::new(read_string))),
         String::from("eval") => Closure(ClosureVal(Rc::new(lib_eval))),
+        String::from("slurp") => Closure(ClosureVal(Rc::new(slurp))),
     }
 }
 
@@ -237,4 +239,11 @@ pub fn lib_eval(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalR
     let arg = util::one_arg("eval", args)?;
     arg.assert_list()?;
     crate::eval::eval(env.clone(), arg)
+}
+
+pub fn slurp(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
+    let arg = util::one_arg("eval", args)?;
+    let file_name = arg.unwrap_string()?;
+    let s = std::fs::read_to_string(file_name).map_err(|e| format!("{:?}", e))?;
+    Ok(LString(s))
 }
