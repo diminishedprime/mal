@@ -92,7 +92,7 @@ fn parse_double() {
 #[test]
 fn parse_empty_list() {
     let actual = parse("( ) ").unwrap();
-    assert_eq!(actual, (list_of(vec![])));
+    assert_eq!(actual, (AST::m_list(vec![])));
 }
 
 #[test]
@@ -100,14 +100,14 @@ fn parse_quote_1() {
     let actual = parse("'1").unwrap();
     assert_eq!(
         actual,
-        (list_of(vec![AST::m_symbol("quote"), AST::m_double(1.0)]))
+        (AST::m_list(vec![AST::m_symbol("quote"), AST::m_double(1.0)]))
     );
 }
 
 #[test]
 fn parse_one_item_list() {
     let actual = parse("(1.34)").unwrap();
-    assert_eq!(actual, (list_of(vec![AST::m_double(1.34)])));
+    assert_eq!(actual, (AST::m_list(vec![AST::m_double(1.34)])));
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn parse_standard_list() {
     let actual = parse("(1.23 1.23)").unwrap();
     assert_eq!(
         actual,
-        (list_of(vec![AST::m_double(1.23), AST::m_double(1.23)]))
+        (AST::m_list(vec![AST::m_double(1.23), AST::m_double(1.23)]))
     );
 }
 
@@ -124,7 +124,7 @@ fn parse_list_weird_whitespace() {
     let actual = parse(" (  ,1.23 ,,, ,1.23,,, )   ").unwrap();
     assert_eq!(
         actual,
-        (list_of(vec![AST::m_double(1.23), AST::m_double(1.23)]))
+        (AST::m_list(vec![AST::m_double(1.23), AST::m_double(1.23)]))
     );
 }
 
@@ -139,9 +139,9 @@ fn parse_with_meta() {
     let actual = parse("^{1 2} [3 4]").unwrap();
     assert_eq!(
         actual,
-        (list_of(vec![
+        (AST::m_list(vec![
             AST::m_symbol("with-meta"),
-            (vec_of(vec![AST::m_double(3.0), AST::m_double(4.0)])),
+            (AST::m_vec(vec![AST::m_double(3.0), AST::m_double(4.0)])),
             AST::m_map(vec![AST::m_double(1.0), AST::m_double(2.0)]),
         ]))
     );

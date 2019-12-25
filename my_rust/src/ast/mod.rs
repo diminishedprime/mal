@@ -45,14 +45,6 @@ pub enum AST {
     Nil, // Int(i64),
 }
 
-pub fn list_of(v: Vec<AST>) -> AST {
-    AST::ListLike(Listy::List(v))
-}
-
-pub fn vec_of(v: Vec<AST>) -> AST {
-    AST::ListLike(Listy::Vector(v))
-}
-
 impl AST {
     pub fn typee(&self) -> String {
         match self {

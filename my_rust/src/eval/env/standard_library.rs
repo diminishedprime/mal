@@ -1,4 +1,3 @@
-use crate::ast::list_of;
 use crate::ast::ClosureVal;
 use crate::ast::SymbolVal;
 use crate::ast::AST;
@@ -106,7 +105,7 @@ pub fn eq(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AS
 }
 
 pub fn list(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
-    Ok(list_of(args.collect::<Vec<_>>()))
+    Ok(AST::m_list(args.collect::<Vec<_>>()))
 }
 
 pub fn is_list(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {

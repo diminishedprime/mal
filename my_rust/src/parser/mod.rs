@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod tests;
 
-use crate::ast::list_of;
-use crate::ast::vec_of;
 use crate::ast::AST;
 use crate::eval::EvalResult;
 use nom::branch::alt;
@@ -32,7 +30,7 @@ fn vector(i: &str) -> IResult<&str, AST> {
             separated_list(whitespace, ast),
             preceded(optional_whitespace, char(']')),
         ),
-        vec_of,
+        AST::m_vec,
     )(i)
 }
 
@@ -54,7 +52,7 @@ fn list(i: &str) -> IResult<&str, AST> {
             separated_list(whitespace, ast),
             preceded(optional_whitespace, char(')')),
         ),
-        list_of,
+        AST::m_list,
     )(i)
 }
 
@@ -115,31 +113,31 @@ fn whitespace(i: &str) -> IResult<&str, &str> {
 
 fn quote(i: &str) -> IResult<&str, AST> {
     map(preceded(char('\''), ast), |ast| {
-        list_of(vec![AST::Symbol(String::from("quote")), ast])
+        AST::m_list(vec![AST::Symbol(String::from("quote")), ast])
     })(i)
 }
 
 fn quasiquote(i: &str) -> IResult<&str, AST> {
     map(preceded(char('`'), ast), |ast| {
-        list_of(vec![AST::Symbol(String::from("quasiquote")), ast])
+        AST::m_list(vec![AST::Symbol(String::from("quasiquote")), ast])
     })(i)
 }
 
 fn splice_unquote(i: &str) -> IResult<&str, AST> {
     map(preceded(tag("~@"), ast), |ast| {
-        list_of(vec![AST::Symbol(String::from("splice-unquote")), ast])
+        AST::m_list(vec![AST::Symbol(String::from("splice-unquote")), ast])
     })(i)
 }
 
 fn unquote(i: &str) -> IResult<&str, AST> {
     map(preceded(char('~'), ast), |ast| {
-        list_of(vec![AST::Symbol(String::from("unquote")), ast])
+        AST::m_list(vec![AST::Symbol(String::from("unquote")), ast])
     })(i)
 }
 
 fn deref(i: &str) -> IResult<&str, AST> {
     map(preceded(char('@'), ast), |ast| {
-        list_of(vec![AST::Symbol(String::from("deref")), ast])
+        AST::m_list(vec![AST::Symbol(String::from("deref")), ast])
     })(i)
 }
 
@@ -151,7 +149,7 @@ fn keyword(i: &str) -> IResult<&str, AST> {
 
 fn with_meta(i: &str) -> IResult<&str, AST> {
     map(preceded(char('^'), pair(parse_map, ast)), |(m, a)| {
-        list_of(vec![AST::Symbol(String::from("with-meta")), a, m])
+        AST::m_list(vec![AST::Symbol(String::from("with-meta")), a, m])
     })(i)
 }
 

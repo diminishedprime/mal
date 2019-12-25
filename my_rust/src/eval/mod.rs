@@ -2,8 +2,6 @@ pub mod env;
 #[cfg(test)]
 mod tests;
 
-use crate::ast::list_of;
-use crate::ast::vec_of;
 use crate::ast::LambdaVal;
 use crate::ast::Listy;
 use crate::ast::AST;
@@ -52,7 +50,7 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
             AST::ListLike(l) => match l {
                 Listy::List(l) => {
                     if l.len() == 0 {
-                        return Ok(list_of(vec![]));
+                        return Ok(AST::m_list(vec![]));
                     }
                     let (first, rest) = split_fn_and_arg(l)?;
                     match first {
@@ -229,7 +227,7 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
                     }
                 }
                 Listy::Vector(v) => {
-                    return Ok(vec_of(
+                    return Ok(AST::m_vec(
                         v.into_iter()
                             .map(|part| eval(env.clone(), part))
                             .collect::<Result<_, _>>()?,

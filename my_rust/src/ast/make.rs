@@ -28,15 +28,15 @@ impl AST {
     pub fn m_map(c: Vec<AST>) -> AST {
         AST::Map(c)
     }
-
+    pub fn m_vec(d: Vec<AST>) -> AST {
+        AST::ListLike(Listy::Vector(d))
+    }
     pub fn m_list(d: Vec<AST>) -> AST {
         AST::ListLike(Listy::List(d))
     }
-
     pub fn m_symbol(s: &str) -> AST {
         AST::Symbol(s.to_string())
     }
-
     pub fn m_nil() -> AST {
         AST::Nil
     }

@@ -103,7 +103,7 @@ fn list_builtin() {
     let actual = run_program("(list 1 2)").unwrap();
     assert_eq!(
         actual,
-        list_of(vec![AST::m_double(1.0), AST::m_double(2.0)])
+        AST::m_list(vec![AST::m_double(1.0), AST::m_double(2.0)])
     );
 }
 
@@ -112,10 +112,10 @@ fn list_builtin_nested() {
     let actual = run_program("(list 1 2 (list 3))").unwrap();
     assert_eq!(
         actual,
-        list_of(vec![
+        AST::m_list(vec![
             AST::m_double(1.0),
             AST::m_double(2.0),
-            list_of(vec![AST::m_double(3.0)])
+            AST::m_list(vec![AST::m_double(3.0)])
         ])
     );
 }
