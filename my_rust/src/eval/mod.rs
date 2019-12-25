@@ -91,8 +91,51 @@ pub fn eval_list(env: Rc<RefCell<Env>>, l: Vec<AST>) -> EvalResult<AST> {
     match first {
         Symbol(s) => {
             let evaled = match s.as_ref() {
+                "if" => {
+                    let (first, second, third) = util::two_or_three_args("if", rest)?;
+                    let first_evaled = eval(env.clone(), first)?;
+                    return if first_evaled.is_falsy() {
+                        third
+                            .map(|third| eval(env.clone(), third))
+                            .unwrap_or(Ok(AST::Nil))
+                    } else {
+                        eval(env.clone(), second)
+                    };
+                }
+                "do" => {
+                    return rest.fold(Ok(AST::Nil), |last, expr| {
+                        last?;
+                        eval(env.clone(), expr)
+                    })
+                }
+                "let*" => {
+                    let (bindings, exprs) = util::one_or_more_args("let*", rest)?;
+                    let mut bindings = bindings.unwrap_list_like()?.into_iter();
+                    let env = Env::with_scope(env.clone());
+                    loop {
+                        let name = bindings.next();
+                        let binding = bindings.next();
+                        match (name, binding) {
+                            (None, None) => break,
+                            (Some(name), Some(expr)) => {
+                                let name = name.unwrap_symbol()?;
+                                let value = eval(env.clone(), expr)?;
+                                env.borrow_mut().set(name.to_string(), value)?;
+                            }
+                            (_, _) => {
+                                return Err(String::from(
+                                    "let bindings must be an even number of forms.",
+                                ))
+                            }
+                        }
+                    }
+                    return exprs.fold(Ok(AST::Nil), |last, next| {
+                        last?;
+                        eval(env.clone(), next)
+                    });
+                }
                 // TODO - this probably shouldn't be necessary to fix the types up.
-                "if" | "let*" | "def!" => rest.collect::<Vec<_>>().into_iter(),
+                "def!" => rest.collect::<Vec<_>>().into_iter(),
                 "fn*" => return eval_fn_star(env.clone(), rest),
                 _ => rest
                     .map(|part| eval(env.clone(), part))

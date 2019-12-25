@@ -22,14 +22,11 @@ pub fn with_standard_library() -> HashMap<SymbolVal, AST> {
         String::from("/") => Closure(ClosureVal(Rc::new(divide))),
         String::from("-") => Closure(ClosureVal(Rc::new(subtract))),
         String::from("def!") => Closure(ClosureVal(Rc::new(define))),
-        String::from("let*") => Closure(ClosureVal(Rc::new(let_star))),
         String::from("=") => Closure(ClosureVal(Rc::new(eq))),
         String::from("list") => Closure(ClosureVal(Rc::new(list))),
         String::from("list?") => Closure(ClosureVal(Rc::new(is_list))),
         String::from("empty?") => Closure(ClosureVal(Rc::new(is_empty))),
         String::from("count") => Closure(ClosureVal(Rc::new(count))),
-        String::from("do") => Closure(ClosureVal(Rc::new(doo))),
-        String::from("if") => Closure(ClosureVal(Rc::new(iff))),
         String::from("str") => Closure(ClosureVal(Rc::new(strr))),
         String::from("pr-str") => Closure(ClosureVal(Rc::new(pr_strr))),
         String::from("println") => Closure(ClosureVal(Rc::new(print_ln))),
@@ -97,43 +94,6 @@ pub fn define(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalRes
     env.borrow_mut().set(first, second)
 }
 
-pub fn let_star_helper(
-    env: Rc<RefCell<Env>>,
-    mut bindings: impl Iterator<Item = AST>,
-    exprs: impl Iterator<Item = AST>,
-) -> EvalResult<AST> {
-    loop {
-        let name = bindings.next();
-        let binding = bindings.next();
-        match (name, binding) {
-            (None, None) => break,
-            (Some(name), Some(expr)) => {
-                let name = name.unwrap_symbol()?;
-                let value = eval(env.clone(), expr)?;
-                env.borrow_mut().set(name.to_string(), value)?;
-            }
-            (_, None) => {
-                return Err(String::from(
-                    "let bindings must be an even number of forms.",
-                ))
-            }
-            (None, Some(_)) => panic!("this shouldn't be able to happen"),
-        }
-    }
-    exprs.fold(Ok(AST::Nil), |last, next| {
-        last?;
-        eval(env.clone(), next)
-    })
-}
-
-pub fn let_star(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
-    let (bindings, exprs) = util::one_or_more_args("let*", args)?;
-    let bindings = bindings.unwrap_list_like()?.into_iter();
-    let env = Env::with_scope(env.clone());
-    let result = let_star_helper(env, bindings, exprs);
-    result
-}
-
 pub fn eq(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let (first, rest) = util::one_or_more_args("=", args)?;
     Ok(Boolean(rest.fold(true, |acc, next: AST| {
@@ -168,25 +128,6 @@ pub fn count(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult
         let arg = arg.unwrap_list_like()?;
         (arg.len() as f64)
     }))
-}
-
-pub fn doo(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
-    args.fold(Ok(AST::Nil), |last, expr| {
-        last?;
-        eval(env.clone(), expr)
-    })
-}
-
-pub fn iff(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
-    let (first, second, third) = util::two_or_three_args("if", args)?;
-    let first_evaled = eval(env.clone(), first)?;
-    if first_evaled.is_falsy() {
-        third
-            .map(|third| eval(env.clone(), third))
-            .unwrap_or(Ok(AST::Nil))
-    } else {
-        eval(env.clone(), second)
-    }
 }
 
 pub fn strr(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
