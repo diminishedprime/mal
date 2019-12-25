@@ -194,6 +194,10 @@ fn with_meta(i: &str) -> IResult<&str, AST> {
     })(i)
 }
 
+fn nil(i: &str) -> IResult<&str, AST> {
+    map(tag("nil"), |_| AST::Nil)(i)
+}
+
 fn truee(i: &str) -> IResult<&str, AST> {
     map(tag("true"), |_| AST::Boolean(true))(i)
 }
@@ -207,6 +211,7 @@ fn ast(i: &str) -> IResult<&str, AST> {
         list,
         vector,
         parse_map,
+        nil,
         truee,
         falsee,
         with_meta,
