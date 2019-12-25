@@ -83,98 +83,96 @@ fn eval_apply_fn(c: LambdaVal, args: Vec<AST>) -> EvalResult<AST> {
     result
 }
 
-pub fn eval_list(env: Rc<RefCell<Env>>, l: Vec<AST>) -> EvalResult<AST> {
-    if l.len() == 0 {
-        return Ok(list_of(vec![]));
-    }
-    let (first, rest) = split_fn_and_arg(l)?;
-    match first {
-        Symbol(s) => {
-            let evaled = match s.as_ref() {
-                "if" => {
-                    let (first, second, third) = util::two_or_three_args("if", rest)?;
-                    let first_evaled = eval(env.clone(), first)?;
-                    return if first_evaled.is_falsy() {
-                        third
-                            .map(|third| eval(env.clone(), third))
-                            .unwrap_or(Ok(AST::Nil))
-                    } else {
-                        eval(env.clone(), second)
-                    };
-                }
-                "do" => {
-                    return rest.fold(Ok(AST::Nil), |last, expr| {
-                        last?;
-                        eval(env.clone(), expr)
-                    })
-                }
-                "let*" => {
-                    let (bindings, exprs) = util::one_or_more_args("let*", rest)?;
-                    let mut bindings = bindings.unwrap_list_like()?.into_iter();
-                    let env = Env::with_scope(env.clone());
-                    loop {
-                        let name = bindings.next();
-                        let binding = bindings.next();
-                        match (name, binding) {
-                            (None, None) => break,
-                            (Some(name), Some(expr)) => {
-                                let name = name.unwrap_symbol()?;
-                                let value = eval(env.clone(), expr)?;
-                                env.borrow_mut().set(name.to_string(), value)?;
-                            }
-                            (_, _) => {
-                                return Err(String::from(
-                                    "let bindings must be an even number of forms.",
-                                ))
-                            }
-                        }
-                    }
-                    return exprs.fold(Ok(AST::Nil), |last, next| {
-                        last?;
-                        eval(env.clone(), next)
-                    });
-                }
-                // TODO - this probably shouldn't be necessary to fix the types up.
-                "def!" => rest.collect::<Vec<_>>().into_iter(),
-                "fn*" => return eval_fn_star(env.clone(), rest),
-                _ => rest
-                    .map(|part| eval(env.clone(), part))
-                    .collect::<Result<Vec<_>, _>>()?
-                    .into_iter(),
-            };
-            let thing = env.borrow().get(&s)?;
-            match thing {
-                Closure(val) => val.0(env.clone(), Box::new(evaled)),
-                Lambda(l) => eval_apply_fn(l, evaled.collect::<Vec<_>>()),
-                _ => return Err(format!("Env value: {} is not a closure", thing)),
-            }
-        }
-        list @ ListLike(Listy::List(_)) => {
-            let first = eval(env.clone(), list)?;
-            let contents = std::iter::once(first).chain(rest).collect::<Vec<_>>();
-            eval(env.clone(), ListLike(Listy::List(contents)))
-        }
-        Lambda(l) => return eval_apply_fn(l, rest.collect::<Vec<_>>()),
-        a => return Err(format!("not implemented: {}", a.typee())),
-    }
-}
-
 pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
-    Ok(match program {
+    match program {
         Symbol(s) => return env.borrow().get(&s),
-        Map(m) => Map(m
+        Map(m) => Ok(Map(m
             .into_iter()
             .map(|part| eval(env.clone(), part))
-            .collect::<Result<_, _>>()?),
+            .collect::<Result<_, _>>()?)),
+        Closure(_) => return Err(String::from("not implemented")),
         ListLike(l) => match l {
-            Listy::List(l) => eval_list(env.clone(), l)?,
-            Listy::Vector(v) => vec_of(
+            Listy::List(l) => {
+                if l.len() == 0 {
+                    return Ok(list_of(vec![]));
+                }
+                let (first, rest) = split_fn_and_arg(l)?;
+                match first {
+                    Symbol(s) => {
+                        let evaled = match s.as_ref() {
+                            "if" => {
+                                let (first, second, third) = util::two_or_three_args("if", rest)?;
+                                let first_evaled = eval(env.clone(), first)?;
+                                return if first_evaled.is_falsy() {
+                                    third
+                                        .map(|third| eval(env.clone(), third))
+                                        .unwrap_or(Ok(AST::Nil))
+                                } else {
+                                    eval(env.clone(), second)
+                                };
+                            }
+                            "do" => {
+                                return rest.fold(Ok(AST::Nil), |last, expr| {
+                                    last?;
+                                    eval(env.clone(), expr)
+                                })
+                            }
+                            "let*" => {
+                                let (bindings, exprs) = util::one_or_more_args("let*", rest)?;
+                                let mut bindings = bindings.unwrap_list_like()?.into_iter();
+                                let env = Env::with_scope(env.clone());
+                                loop {
+                                    let name = bindings.next();
+                                    let binding = bindings.next();
+                                    match (name, binding) {
+                                        (None, None) => break,
+                                        (Some(name), Some(expr)) => {
+                                            let name = name.unwrap_symbol()?;
+                                            let value = eval(env.clone(), expr)?;
+                                            env.borrow_mut().set(name.to_string(), value)?;
+                                        }
+                                        (_, _) => {
+                                            return Err(String::from(
+                                                "let bindings must be an even number of forms.",
+                                            ))
+                                        }
+                                    }
+                                }
+                                return exprs.fold(Ok(AST::Nil), |last, next| {
+                                    last?;
+                                    eval(env.clone(), next)
+                                });
+                            }
+                            // TODO - this probably shouldn't be necessary to fix the types up.
+                            "def!" => rest.collect::<Vec<_>>().into_iter(),
+                            "fn*" => return eval_fn_star(env.clone(), rest),
+                            _ => rest
+                                .map(|part| eval(env.clone(), part))
+                                .collect::<Result<Vec<_>, _>>()?
+                                .into_iter(),
+                        };
+                        let thing = env.borrow().get(&s)?;
+                        match thing {
+                            Closure(val) => val.0(env.clone(), Box::new(evaled)),
+                            Lambda(l) => eval_apply_fn(l, evaled.collect::<Vec<_>>()),
+                            _ => return Err(format!("Env value: {} is not a closure", thing)),
+                        }
+                    }
+                    list @ ListLike(Listy::List(_)) => {
+                        let first = eval(env.clone(), list)?;
+                        let contents = std::iter::once(first).chain(rest).collect::<Vec<_>>();
+                        eval(env.clone(), ListLike(Listy::List(contents)))
+                    }
+                    Lambda(l) => return eval_apply_fn(l, rest.collect::<Vec<_>>()),
+                    a => return Err(format!("not implemented: {}", a.typee())),
+                }
+            }
+            Listy::Vector(v) => Ok(vec_of(
                 v.into_iter()
                     .map(|part| eval(env.clone(), part))
                     .collect::<Result<_, _>>()?,
-            ),
+            )),
         },
-        Closure(_) => return Err(String::from("not implemented")),
-        otherwise => otherwise,
-    })
+        otherwise => Ok(otherwise),
+    }
 }
