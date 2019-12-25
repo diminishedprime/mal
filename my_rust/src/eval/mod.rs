@@ -110,13 +110,13 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
                                         let (first, second, third) =
                                             util::two_or_three_args("if", rest)?;
                                         let first_evaled = eval(env.clone(), first)?;
-                                        return if first_evaled.is_falsy() {
-                                            third
-                                                .map(|third| eval(env.clone(), third))
-                                                .unwrap_or(Ok(AST::Nil))
+                                        if first_evaled.is_falsy() {
+                                            program = third.unwrap_or(AST::Nil);
                                         } else {
-                                            eval(env.clone(), second)
+                                            program = second;
                                         };
+                                        env = env.clone();
+                                        continue 'eval_loop;
                                     }
                                     "do" => {
                                         let mut peekable = rest.peekable();
