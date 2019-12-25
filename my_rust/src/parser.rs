@@ -3,6 +3,7 @@ use crate::ast::vec_of;
 use crate::ast::AST;
 use crate::eval::EvalResult;
 use nom::branch::alt;
+use nom::bytes::complete::escaped;
 use nom::bytes::complete::is_a;
 use nom::bytes::complete::is_not;
 use nom::bytes::complete::tag;
@@ -13,9 +14,6 @@ use nom::character::complete::one_of;
 use nom::combinator::map;
 use nom::combinator::not;
 use nom::combinator::opt;
-use nom::combinator::value;
-use nom::combinator::verify;
-use nom::multi::fold_many0;
 use nom::multi::many0;
 use nom::multi::separated_list;
 use nom::sequence::delimited;
@@ -92,56 +90,15 @@ fn double(i: &str) -> IResult<&str, AST> {
     map(nom::number::complete::double, AST::Double)(i)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum StringFragment<'a> {
-    Literal(&'a str),
-    Escaped(char),
+fn parse_str(i: &str) -> IResult<&str, AST> {
+    map(
+        escaped(is_not("\"\\"), '\\', one_of(r#"\"ntr"#)),
+        |s: &str| AST::LString(s.to_string()),
+    )(i)
 }
 
 fn string(i: &str) -> IResult<&str, AST> {
-    map(
-        delimited(
-            char('"'),
-            fold_many0(
-                alt((
-                    // Match either a bunch of non-escaped characters or one escaped character
-                    map(
-                        verify(is_not("\"\\"), |s: &str| !s.is_empty()),
-                        StringFragment::Literal,
-                    ),
-                    map(
-                        preceded(
-                            char('\\'),
-                            alt((
-                                value('\\', char('\\')),
-                                value('/', char('/')),
-                                value('"', char('"')),
-                                value('\u{08}', char('b')),
-                                value('\u{0C}', char('f')),
-                                value('\n', char('n')),
-                                value('\r', char('r')),
-                                value('\t', char('t')),
-                            )),
-                        ),
-                        StringFragment::Escaped,
-                    ),
-                )),
-                String::new(),
-                |mut string, fragment| {
-                    match fragment {
-                        StringFragment::Literal(s) => string.push_str(s),
-                        StringFragment::Escaped(c) => {
-                            string.push('\\');
-                            string.push(c)
-                        }
-                    };
-                    string
-                },
-            ),
-            char('"'),
-        ),
-        AST::LString,
-    )(i)
+    preceded(char('\"'), terminated(parse_str, char('\"')))(i)
 }
 
 fn optional_whitespace(i: &str) -> IResult<&str, Option<&str>> {
@@ -206,6 +163,10 @@ fn falsee(i: &str) -> IResult<&str, AST> {
     map(tag("false"), |_| AST::Boolean(false))(i)
 }
 
+fn empty_string(i: &str) -> IResult<&str, AST> {
+    map(tag(r#""""#), |_| AST::LString(String::new()))(i)
+}
+
 fn ast(i: &str) -> IResult<&str, AST> {
     let expressions = alt((
         list,
@@ -225,6 +186,7 @@ fn ast(i: &str) -> IResult<&str, AST> {
         special_symbol,
         double,
         symbol,
+        empty_string,
     ));
     preceded(optional_whitespace, expressions)(i)
 }
@@ -255,8 +217,26 @@ mod tests {
 
     #[test]
     fn parse_string() {
-        let actual = parse("\"\"").unwrap();
+        let actual = parse(r#" ""  "#).unwrap();
         assert_eq!(actual, LString("".to_string()));
+    }
+
+    #[test]
+    fn parse_string_with_escaped_quote() {
+        let actual = parse(r#" "abc\"def"  "#).unwrap();
+        assert_eq!(actual, LString(r#"abc\"def"#.to_string()));
+    }
+
+    #[test]
+    fn parse_string_with_escaped_quotes() {
+        let actual = parse(r#" "\"\""  "#).unwrap();
+        assert_eq!(actual, LString(r#"\"\""#.to_string()));
+    }
+
+    #[test]
+    fn parse_string_with_newline() {
+        let actual = parse(r#" "\n"  "#).unwrap();
+        assert_eq!(actual, LString(r#"\n"#.to_string()));
     }
 
     #[test]

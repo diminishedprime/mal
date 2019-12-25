@@ -190,20 +190,32 @@ pub fn iff(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult
 }
 
 pub fn strr(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
-    Ok(AST::LString(pr_seq(args, false, "", "", "")))
+    Ok(AST::LString(pr_seq(
+        args.collect::<Vec<AST>>(),
+        false,
+        "",
+        "",
+        "",
+    )))
 }
 
 pub fn pr_strr(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
-    Ok(AST::LString(pr_seq(args, true, "", "", "")))
+    Ok(AST::LString(pr_seq(
+        args.collect::<Vec<AST>>(),
+        true,
+        "",
+        "",
+        " ",
+    )))
 }
 
 pub fn print_ln(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
-    println!("{}", pr_seq(args, false, "", "", ""));
+    println!("{}", pr_seq(args.collect::<Vec<AST>>(), false, "", "", " "));
     Ok(AST::Nil)
 }
 
 pub fn prn(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
-    println!("{}", pr_seq(args, true, "", "", ""));
+    println!("{}", pr_seq(args.collect::<Vec<AST>>(), true, "", "", " "));
     Ok(AST::Nil)
 }
 

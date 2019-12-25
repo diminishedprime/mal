@@ -231,10 +231,4 @@ mod tests {
         let actual = Keyword(String::from("abc"));
         assert_eq!(format!("{}", actual), String::from(":abc"));
     }
-
-    #[test]
-    fn display_closure() {
-        let actual = Closure(ClosureVal(Rc::new(|_, mut a| Ok(a.next().unwrap()))));
-        assert_eq!(format!("{}", actual).contains("fn @0x"), true)
-    }
 }
