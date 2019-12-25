@@ -111,6 +111,13 @@ impl AST {
         }
     }
 
+    pub fn is_nil(&self) -> bool {
+        match self {
+            Nil => true,
+            _ => false,
+        }
+    }
+
     pub fn is_list(&self) -> bool {
         match self {
             ListLike(Listy::List(_)) => true,

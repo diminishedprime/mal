@@ -159,8 +159,12 @@ pub fn is_empty(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalRes
 
 pub fn count(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let arg = util::one_arg("empty?", args)?;
-    let arg = arg.unwrap_list_like()?;
-    Ok(Double(arg.len() as f64))
+    Ok(Double(if arg.is_nil() {
+        0.0
+    } else {
+        let arg = arg.unwrap_list_like()?;
+        (arg.len() as f64)
+    }))
 }
 
 pub fn doo(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
