@@ -35,6 +35,9 @@ pub fn with_standard_library() -> HashMap<SymbolVal, AST> {
         String::from("read-string") => AST::Closure(ClosureVal(Rc::new(read_string))),
         String::from("eval") => AST::Closure(ClosureVal(Rc::new(lib_eval))),
         String::from("slurp") => AST::Closure(ClosureVal(Rc::new(slurp))),
+        String::from("atom") => AST::Closure(ClosureVal(Rc::new(atom))),
+        String::from("atom?") => AST::Closure(ClosureVal(Rc::new(is_atom))),
+        String::from("deref") => AST::Closure(ClosureVal(Rc::new(deref))),
     }
 }
 
@@ -241,4 +244,22 @@ pub fn slurp(_: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult
     let file_name = arg.unwrap_string()?;
     let s = std::fs::read_to_string(file_name).map_err(|e| format!("{:?}", e))?;
     Ok(AST::m_string(&s))
+}
+
+pub fn atom(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
+    let arg = util::one_arg("atom", args)?;
+    let arg = eval(env.clone(), arg)?;
+    Ok(AST::m_atom(arg))
+}
+
+pub fn is_atom(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
+    let arg = util::one_arg("atom", args)?;
+    let arg = eval(env.clone(), arg)?;
+    Ok(AST::m_boolean(arg.is_atom()))
+}
+
+pub fn deref(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
+    let arg = util::one_arg("atom", args)?;
+    let arg = eval(env.clone(), arg)?;
+    Ok(arg.unwrap_atom()?)
 }

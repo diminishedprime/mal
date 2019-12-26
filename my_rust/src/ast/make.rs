@@ -21,7 +21,9 @@ impl AST {
     pub fn m_keyword(k: &str) -> AST {
         AST::Keyword(k.to_string())
     }
-
+    pub fn m_atom(contents: AST) -> AST {
+        AST::Atom(Box::new(contents))
+    }
     pub fn m_double(d: f64) -> AST {
         AST::Double(d)
     }

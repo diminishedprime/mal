@@ -63,6 +63,7 @@ impl AST {
             AST::Keyword(kw) => format!(":{}", kw),
             AST::Closure(f) => format!("#<fn {:p}>", f.0),
             AST::Lambda(_) => format!("#<lambda>"),
+            AST::Atom(a) => format!("(atom {})", a),
         }
     }
 }

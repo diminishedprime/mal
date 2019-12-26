@@ -1,3 +1,4 @@
+mod is;
 mod make;
 #[cfg(test)]
 mod tests;
@@ -42,6 +43,7 @@ pub enum AST {
     Closure(ClosureVal),
     Lambda(LambdaVal),
     Boolean(bool),
+    Atom(Box<AST>),
     Nil, // Int(i64),
 }
 
@@ -57,6 +59,7 @@ impl AST {
             AST::Closure(_) => String::from("closure"),
             AST::Lambda(_) => String::from("lambda"),
             AST::Boolean(_) => String::from("boolean"),
+            AST::Atom(_) => String::from("atom"),
             AST::Nil => String::from("nil"),
         }
     }
@@ -65,6 +68,13 @@ impl AST {
         match self {
             AST::Boolean(b) => Ok(b),
             a => Err(format!("{} is not a boolean", a)),
+        }
+    }
+
+    pub fn unwrap_atom(self) -> EvalResult<AST> {
+        match self {
+            AST::Atom(a) => Ok(*a),
+            a => Err(format!("{} is not a double", a)),
         }
     }
 
@@ -107,40 +117,11 @@ impl AST {
             a => Err(format!("{} is not a List or Vector", a)),
         }
     }
-
-    pub fn is_nil(&self) -> bool {
-        match self {
-            AST::Nil => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_list(&self) -> bool {
-        match self {
-            AST::ListLike(Listy::List(_)) => true,
-            _ => false,
-        }
-    }
-
     pub fn assert_list(&self) -> EvalResult<()> {
         if self.is_list() {
             Ok(())
         } else {
             Err(format!("{} is not a list", self.typee()))
-        }
-    }
-
-    pub fn is_lambda(&self) -> bool {
-        match self {
-            AST::Lambda(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_falsy(&self) -> bool {
-        match self {
-            AST::Nil | AST::Boolean(false) => true,
-            _ => false,
         }
     }
 }
