@@ -15,6 +15,8 @@ use nom::character::complete::one_of;
 use nom::combinator::map;
 use nom::combinator::not;
 use nom::combinator::opt;
+use nom::error::ParseError;
+use nom::error::VerboseError;
 use nom::multi::many0;
 use nom::multi::separated_list;
 use nom::sequence::delimited;
@@ -23,7 +25,7 @@ use nom::sequence::preceded;
 use nom::sequence::terminated;
 use nom::IResult;
 
-fn vector(i: &str) -> IResult<&str, AST> {
+fn vector<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(
         delimited(
             char('['),
@@ -34,7 +36,7 @@ fn vector(i: &str) -> IResult<&str, AST> {
     )(i)
 }
 
-fn parse_map(i: &str) -> IResult<&str, AST> {
+fn parse_map<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(
         delimited(
             char('{'),
@@ -45,7 +47,7 @@ fn parse_map(i: &str) -> IResult<&str, AST> {
     )(i)
 }
 
-fn list(i: &str) -> IResult<&str, AST> {
+fn list<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(
         delimited(
             char('('),
@@ -56,10 +58,7 @@ fn list(i: &str) -> IResult<&str, AST> {
     )(i)
 }
 
-// TODO - I need this to check that its followed by whitespace, but I can't consume the
-// whitespace...???
-// TODO - I think I need to use peek here.
-fn special_symbol(i: &str) -> IResult<&str, AST> {
+fn special_symbol<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(
         alt((
             terminated(is_a("&+*/-="), not(one_of("0123456789"))),
@@ -74,11 +73,11 @@ fn special_symbol(i: &str) -> IResult<&str, AST> {
     )(i)
 }
 
-fn symbol_char(i: &str) -> IResult<&str, &str> {
+fn symbol_char<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
     alt((is_a("+*-?!"), alphanumeric1))(i)
 }
 
-fn symbol(i: &str) -> IResult<&str, AST> {
+fn symbol<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     let (remaining, first_bits) = alt((alpha1, is_a("+*-?/<>=")))(i)?;
     map(many0(symbol_char), move |rest: Vec<&str>| {
         let mut s = String::new();
@@ -88,92 +87,94 @@ fn symbol(i: &str) -> IResult<&str, AST> {
     })(&remaining)
 }
 
-fn double(i: &str) -> IResult<&str, AST> {
+fn double<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(nom::number::complete::double, AST::Double)(i)
 }
 
-fn parse_str(i: &str) -> IResult<&str, AST> {
+fn parse_str<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(
         escaped(is_not("\"\\"), '\\', one_of(r#"\"ntr"#)),
         |s: &str| AST::LString(s.to_string()),
     )(i)
 }
 
-fn string(i: &str) -> IResult<&str, AST> {
+fn string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     preceded(char('\"'), terminated(parse_str, char('\"')))(i)
 }
 
-fn optional_whitespace(i: &str) -> IResult<&str, Option<&str>> {
+fn optional_whitespace<'a, E: ParseError<&'a str>>(
+    i: &'a str,
+) -> IResult<&'a str, Option<&'a str>, E> {
     opt(whitespace)(i)
 }
 
-fn whitespace(i: &str) -> IResult<&str, &str> {
+fn whitespace<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
     is_a(" ,\n")(i)
 }
 
-fn quote(i: &str) -> IResult<&str, AST> {
+fn quote<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(preceded(char('\''), ast), |ast| {
         AST::m_list(vec![AST::Symbol(String::from("quote")), ast])
     })(i)
 }
 
-fn quasiquote(i: &str) -> IResult<&str, AST> {
+fn quasiquote<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(preceded(char('`'), ast), |ast| {
         AST::m_list(vec![AST::Symbol(String::from("quasiquote")), ast])
     })(i)
 }
 
-fn splice_unquote(i: &str) -> IResult<&str, AST> {
+fn splice_unquote<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(preceded(tag("~@"), ast), |ast| {
         AST::m_list(vec![AST::Symbol(String::from("splice-unquote")), ast])
     })(i)
 }
 
-fn unquote(i: &str) -> IResult<&str, AST> {
+fn unquote<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(preceded(char('~'), ast), |ast| {
         AST::m_list(vec![AST::Symbol(String::from("unquote")), ast])
     })(i)
 }
 
-fn deref(i: &str) -> IResult<&str, AST> {
+fn deref<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(preceded(char('@'), ast), |ast| {
         AST::m_list(vec![AST::Symbol(String::from("deref")), ast])
     })(i)
 }
 
-fn keyword(i: &str) -> IResult<&str, AST> {
+fn keyword<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(preceded(char(':'), alphanumeric1), |s: &str| {
         AST::Keyword(s.to_string())
     })(i)
 }
 
-fn with_meta(i: &str) -> IResult<&str, AST> {
+fn with_meta<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(preceded(char('^'), pair(parse_map, ast)), |(m, a)| {
         AST::m_list(vec![AST::Symbol(String::from("with-meta")), a, m])
     })(i)
 }
 
-fn nil(i: &str) -> IResult<&str, AST> {
+fn nil<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(tag("nil"), |_| AST::Nil)(i)
 }
 
-fn truee(i: &str) -> IResult<&str, AST> {
+fn truee<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(tag("true"), |_| AST::Boolean(true))(i)
 }
 
-fn falsee(i: &str) -> IResult<&str, AST> {
+fn falsee<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(tag("false"), |_| AST::Boolean(false))(i)
 }
 
-fn empty_string(i: &str) -> IResult<&str, AST> {
+fn empty_string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     map(tag(r#""""#), |_| AST::LString(String::new()))(i)
 }
 
-fn comment(i: &str) -> IResult<&str, Option<&str>> {
-    opt(preceded(tag(";;"), is_not("\n")))(i)
+fn comment<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Vec<&'a str>, E> {
+    many0(preceded(one_of(";"), is_not("\n")))(i)
 }
 
-fn ast(i: &str) -> IResult<&str, AST> {
+fn ast<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
     let expression = alt((
         list,
         vector,
@@ -200,6 +201,6 @@ fn ast(i: &str) -> IResult<&str, AST> {
 }
 
 pub fn parse(input: &str) -> EvalResult<AST> {
-    let (_remaining, parsed) = ast(input).map_err(|e| format!("{:?}", e))?;
+    let (_remaining, parsed) = ast::<VerboseError<&str>>(input).map_err(|e| format!("{:?}", e))?;
     Ok(parsed)
 }

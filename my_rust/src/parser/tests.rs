@@ -12,6 +12,21 @@ fn parse_env_symbol_names() {
 }
 
 #[test]
+fn program_with_comments() {
+    let input = std::fs::read_to_string("./src/parser/parse_input/inline-comments.mal").unwrap();
+    let actual = parse(&input).unwrap();
+    assert_eq!(actual, AST::m_symbol("+"),)
+}
+
+// #[test]
+// fn program_with_multi_line_comments() {
+//     let input =
+//         std::fs::read_to_string("./src/parser/parse_input/multi-line-comments.mal").unwrap();
+//     let actual = parse(&input).unwrap();
+//     assert_eq!(actual, AST::m_symbol("+"),)
+// }
+
+#[test]
 fn program_with_inline_comments() {
     let actual = parse(
         r#";; this is a comment
