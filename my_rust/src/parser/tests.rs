@@ -18,13 +18,13 @@ fn program_with_comments() {
     assert_eq!(actual, AST::m_symbol("+"),)
 }
 
-// #[test]
-// fn program_with_multi_line_comments() {
-//     let input =
-//         std::fs::read_to_string("./src/parser/parse_input/multi-line-comments.mal").unwrap();
-//     let actual = parse(&input).unwrap();
-//     assert_eq!(actual, AST::m_symbol("+"),)
-// }
+#[test]
+fn program_with_multi_line_comments() {
+    let input =
+        std::fs::read_to_string("./src/parser/parse_input/multi-line-comments.mal").unwrap();
+    let actual = parse(&input).unwrap();
+    assert_eq!(actual, AST::m_symbol("+"),)
+}
 
 #[test]
 fn program_with_inline_comments() {

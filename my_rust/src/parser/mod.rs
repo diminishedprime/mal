@@ -15,6 +15,7 @@ use nom::character::complete::one_of;
 use nom::combinator::map;
 use nom::combinator::not;
 use nom::combinator::opt;
+use nom::error::context;
 use nom::error::ParseError;
 use nom::error::VerboseError;
 use nom::multi::many0;
@@ -26,55 +27,67 @@ use nom::sequence::terminated;
 use nom::IResult;
 
 fn vector<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
-    map(
-        delimited(
-            char('['),
-            separated_list(whitespace, ast),
-            preceded(optional_whitespace, char(']')),
+    context(
+        "vector",
+        map(
+            delimited(
+                char('['),
+                separated_list(whitespace, ast),
+                preceded(optional_whitespace, char(']')),
+            ),
+            AST::m_vec,
         ),
-        AST::m_vec,
     )(i)
 }
 
 fn parse_map<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
-    map(
-        delimited(
-            char('{'),
-            separated_list(whitespace, ast),
-            preceded(optional_whitespace, char('}')),
+    context(
+        "map",
+        map(
+            delimited(
+                char('{'),
+                separated_list(whitespace, ast),
+                preceded(optional_whitespace, char('}')),
+            ),
+            AST::Map,
         ),
-        AST::Map,
     )(i)
 }
 
 fn list<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
-    map(
-        delimited(
-            char('('),
-            separated_list(whitespace, ast),
-            preceded(optional_whitespace, char(')')),
+    context(
+        "list",
+        map(
+            delimited(
+                char('('),
+                separated_list(whitespace, ast),
+                preceded(optional_whitespace, char(')')),
+            ),
+            AST::m_list,
         ),
-        AST::m_list,
     )(i)
 }
 
 fn special_symbol<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
-    map(
-        alt((
-            terminated(is_a("&+*/-="), not(one_of("0123456789"))),
-            tag("empty?"),
-            tag("eval"),
-        )),
-        |c: &str| {
-            let mut s = String::new();
-            s.push_str(c);
-            AST::Symbol(s)
-        },
+    context(
+        "special_symbol",
+        map(
+            alt((
+                terminated(is_a("&+*/-="), not(one_of("0123456789"))),
+                tag("empty?"),
+                tag("eval"),
+            )),
+            |c: &str| {
+                let mut s = String::new();
+                s.push_str(c);
+                AST::Symbol(s)
+            },
+        ),
     )(i)
 }
 
 fn symbol_char<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
-    alt((is_a("+*-?!"), alphanumeric1))(i)
+    context("symbol_char", alt((is_a("+*-?!"), alphanumeric1)))(i)
 }
 
 fn symbol<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
@@ -88,18 +101,24 @@ fn symbol<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
 }
 
 fn double<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
-    map(nom::number::complete::double, AST::Double)(i)
+    context("double", map(nom::number::complete::double, AST::Double))(i)
 }
 
 fn parse_str<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
-    map(
-        escaped(is_not("\"\\"), '\\', one_of(r#"\"ntr"#)),
-        |s: &str| AST::LString(s.to_string()),
+    context(
+        "parse_str",
+        map(
+            escaped(is_not("\"\\"), '\\', one_of(r#"\"ntr"#)),
+            |s: &str| AST::LString(s.to_string()),
+        ),
     )(i)
 }
 
 fn string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
-    preceded(char('\"'), terminated(parse_str, char('\"')))(i)
+    context(
+        "string",
+        preceded(char('\"'), terminated(parse_str, char('\"'))),
+    )(i)
 }
 
 fn optional_whitespace<'a, E: ParseError<&'a str>>(
@@ -171,30 +190,36 @@ fn empty_string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST,
 }
 
 fn comment<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Vec<&'a str>, E> {
-    many0(preceded(one_of(";"), is_not("\n")))(i)
+    context(
+        "comment",
+        many0(delimited(one_of(";"), is_not("\n"), tag("\n"))),
+    )(i)
 }
 
 fn ast<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, AST, E> {
-    let expression = alt((
-        list,
-        vector,
-        parse_map,
-        nil,
-        truee,
-        falsee,
-        with_meta,
-        keyword,
-        string,
-        splice_unquote,
-        unquote,
-        quasiquote,
-        quote,
-        deref,
-        special_symbol,
-        double,
-        symbol,
-        empty_string,
-    ));
+    let expression = context(
+        "ast",
+        alt((
+            list,
+            vector,
+            parse_map,
+            nil,
+            truee,
+            falsee,
+            with_meta,
+            keyword,
+            string,
+            splice_unquote,
+            unquote,
+            quasiquote,
+            quote,
+            deref,
+            special_symbol,
+            double,
+            symbol,
+            empty_string,
+        )),
+    );
     let parse_expr = preceded(optional_whitespace, expression);
     let ignore_comments = delimited(comment, parse_expr, comment);
     ignore_comments(i)
