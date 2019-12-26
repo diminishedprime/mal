@@ -143,3 +143,21 @@ fn do_with_def_expr() {
     let actual = run_program("(do (def! a 1) a)").unwrap();
     assert_eq!(actual, AST::m_double(1.0));
 }
+
+#[test]
+fn create_atom() {
+    let actual = run_program("(atom 3)").unwrap();
+    assert_eq!(actual, AST::m_atom(AST::m_double(3.0)));
+}
+
+#[test]
+fn deref_atom() {
+    let actual = run_program("(do (def! a (atom 3)) @a)").unwrap();
+    assert_eq!(actual, AST::m_double(3.0));
+}
+
+#[test]
+fn reset_atom() {
+    let actual = run_program("(do (def! a (atom 3)) (reset! a 4) @a)").unwrap();
+    assert_eq!(actual, AST::m_double(4.0));
+}

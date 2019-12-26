@@ -9,6 +9,7 @@ use core::fmt::Debug;
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::Display;
+use std::iter;
 use std::rc::Rc;
 
 pub type SymbolVal = String;
@@ -71,9 +72,9 @@ impl AST {
         }
     }
 
-    pub fn unwrap_atom(self) -> EvalResult<AST> {
+    pub fn unwrap_atom(self) -> EvalResult<Box<AST>> {
         match self {
-            AST::Atom(a) => Ok(*a),
+            AST::Atom(a) => Ok(a),
             a => Err(format!("{} is not a double", a)),
         }
     }
@@ -122,6 +123,42 @@ impl AST {
             Ok(())
         } else {
             Err(format!("{} is not a list", self.typee()))
+        }
+    }
+    pub fn set_atom(&mut self, new: AST) -> EvalResult<()> {
+        match self {
+            AST::Atom(_) => {
+                // I'm obviously missing something here, this doesn't work like
+                // I want it to.
+                unsafe {
+                    std::ptr::write(self, new);
+                }
+                Ok(())
+            }
+            _ => Err(format!("{} is not an atom.", self)),
+        }
+    }
+    pub fn update_atom(
+        mut self,
+        env: Rc<RefCell<Env>>,
+        update_fn: AST,
+        rest: impl Iterator<Item = AST>,
+    ) -> EvalResult<AST> {
+        match self {
+            AST::Atom(current_value) => {
+                let new_val = crate::eval::eval(
+                    env.clone(),
+                    AST::m_list(
+                        iter::once(update_fn)
+                            .chain(iter::once(*current_value))
+                            .chain(rest)
+                            .collect::<Vec<_>>(),
+                    ),
+                )?;
+                self = AST::Atom(Box::new(new_val));
+                Ok(self)
+            }
+            _ => Err(format!("{} is not an atom.", self)),
         }
     }
 }

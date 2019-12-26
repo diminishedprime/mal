@@ -11,6 +11,18 @@ pub fn one_or_more_args(
     Ok((first, args))
 }
 
+pub fn two_or_more_args(
+    fn_name: &str,
+    mut args: impl Iterator<Item = AST>,
+) -> EvalResult<(AST, AST, impl Iterator<Item = AST>)> {
+    let first = args.next();
+    let second = args.next();
+    match (first, second) {
+        (Some(first), Some(second)) => Ok((first, second, args)),
+        _ => Err(format!("{} requires two or more arguments", fn_name)),
+    }
+}
+
 pub fn two_args(fn_name: &str, mut args: impl Iterator<Item = AST>) -> EvalResult<(AST, AST)> {
     let first = args.next();
     let second = args.next();

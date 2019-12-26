@@ -38,6 +38,8 @@ pub fn with_standard_library() -> HashMap<SymbolVal, AST> {
         String::from("atom") => AST::Closure(ClosureVal(Rc::new(atom))),
         String::from("atom?") => AST::Closure(ClosureVal(Rc::new(is_atom))),
         String::from("deref") => AST::Closure(ClosureVal(Rc::new(deref))),
+        String::from("reset!") => AST::Closure(ClosureVal(Rc::new(reset))),
+        String::from("swap!") => AST::Closure(ClosureVal(Rc::new(swap))),
     }
 }
 
@@ -261,5 +263,29 @@ pub fn is_atom(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalRe
 pub fn deref(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
     let arg = util::one_arg("atom", args)?;
     let arg = eval(env.clone(), arg)?;
-    Ok(arg.unwrap_atom()?)
+    Ok(*arg.unwrap_atom()?)
+}
+
+pub fn reset(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
+    let (mut atom, new_value) = util::two_args("reset!", args)?;
+    if atom.is_atom() {
+        let arg = eval(env.clone(), new_value)?;
+        atom.set_atom(arg)?;
+        Ok(atom)
+    } else {
+        Err(format!("reset! can only be called on an atom."))
+    }
+}
+
+pub fn swap(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
+    let (atom, update_fn, rest) = util::two_or_more_args("swap!", args)?;
+    let update_fn = eval(env.clone(), update_fn)?;
+    // update_fn.assert_callable()?;
+    let evaled_args = rest
+        .map(|arg| eval(env.clone(), arg))
+        .collect::<EvalResult<Vec<AST>>>()?
+        .into_iter();
+    Ok(*atom
+        .update_atom(env.clone(), update_fn, evaled_args)?
+        .unwrap_atom()?)
 }
