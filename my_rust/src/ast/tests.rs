@@ -25,4 +25,11 @@ mod tests {
         let actual = AST::m_keyword("abc");
         assert_eq!(format!("{}", actual), String::from(":abc"));
     }
+
+    #[test]
+    fn can_reset_an_atom() {
+        let mut initial = AST::m_atom(AST::m_double(3.0));
+        initial.set_atom(AST::m_double(4.0)).unwrap();
+        assert_eq!(initial, AST::m_double(4.0))
+    }
 }
