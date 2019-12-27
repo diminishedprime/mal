@@ -278,14 +278,13 @@ pub fn reset(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResu
 }
 
 pub fn swap(env: Rc<RefCell<Env>>, args: impl Iterator<Item = AST>) -> EvalResult<AST> {
-    let (atom, update_fn, rest) = util::two_or_more_args("swap!", args)?;
+    let (mut atom, update_fn, rest) = util::two_or_more_args("swap!", args)?;
     let update_fn = eval(env.clone(), update_fn)?;
     // update_fn.assert_callable()?;
     let evaled_args = rest
         .map(|arg| eval(env.clone(), arg))
         .collect::<EvalResult<Vec<AST>>>()?
         .into_iter();
-    Ok(*atom
-        .update_atom(env.clone(), update_fn, evaled_args)?
-        .unwrap_atom()?)
+    atom.update_atom(env.clone(), update_fn, evaled_args)?;
+    Ok(atom)
 }

@@ -127,36 +127,33 @@ impl AST {
     }
     pub fn set_atom(&mut self, new: AST) -> EvalResult<()> {
         match self {
-            AST::Atom(_) => {
-                // I'm obviously missing something here, this doesn't work like
-                // I want it to.
-                unsafe {
-                    std::ptr::write(self, new);
-                }
+            AST::Atom(ref mut a) => {
+                **a = new;
                 Ok(())
             }
             _ => Err(format!("{} is not an atom.", self)),
         }
     }
     pub fn update_atom(
-        mut self,
+        &mut self,
         env: Rc<RefCell<Env>>,
         update_fn: AST,
         rest: impl Iterator<Item = AST>,
-    ) -> EvalResult<AST> {
+    ) -> EvalResult<()> {
+        let current_self = self.clone().unwrap_atom()?;
         match self {
-            AST::Atom(current_value) => {
+            AST::Atom(_) => {
                 let new_val = crate::eval::eval(
                     env.clone(),
                     AST::m_list(
                         iter::once(update_fn)
-                            .chain(iter::once(*current_value))
+                            .chain(iter::once(*current_self))
                             .chain(rest)
                             .collect::<Vec<_>>(),
                     ),
                 )?;
-                self = AST::Atom(Box::new(new_val));
-                Ok(self)
+                self.set_atom(new_val)?;
+                Ok(())
             }
             _ => Err(format!("{} is not an atom.", self)),
         }
