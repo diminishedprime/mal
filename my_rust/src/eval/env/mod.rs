@@ -12,8 +12,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 pub struct Env {
-    pub env: HashMap<SymbolVal, AST>,
-    pub parent: Option<Rc<RefCell<Env>>>,
+    env: HashMap<SymbolVal, AST>,
+    parent: Option<Rc<RefCell<Env>>>,
 }
 
 impl Env {

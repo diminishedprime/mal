@@ -4,8 +4,7 @@ use crate::env::Env;
 #[test]
 fn parse_env_symbol_names() {
     let env = Env::new().unwrap();
-    let map = &env.borrow().env;
-    map.keys().for_each(|key| {
+    env.borrow().keys().iter().for_each(|key| {
         let actual = parse(key).unwrap();
         assert_eq!(actual, AST::m_symbol(key))
     });
