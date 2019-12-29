@@ -238,3 +238,20 @@ pub fn eval(env: Rc<RefCell<Env>>, program: AST) -> EvalResult<AST> {
         }
     }
 }
+
+pub fn eval_2(
+    _env: crate::val::Env,
+    program: crate::val::MalVal,
+) -> crate::val::EvalResult<crate::val::MalVal> {
+    let evaluated = match *program {
+        crate::val::MalType::Vector(ref a) => {
+            let new_contents = a
+                .iter()
+                .map(|val| eval_2(_env.clone(), val.clone()))
+                .collect::<crate::val::EvalResult<Vec<_>>>()?;
+            crate::val::m_vector(new_contents)
+        }
+        _ => program.clone(),
+    };
+    Ok(evaluated)
+}

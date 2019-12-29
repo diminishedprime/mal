@@ -5,6 +5,7 @@ pub mod eval;
 pub mod parser;
 pub mod print;
 pub mod read;
+mod val;
 
 use eval::env;
 use eval::EvalResult;
