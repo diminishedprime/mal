@@ -11,6 +11,23 @@ fn run_program(program: &str) -> EvalResult<MalVal> {
 }
 
 #[test]
+fn stack_no_blow() {
+    let actual = run_program("(do (def! fib (fn* (N) (if (= N 0) 1 (if (= N 1) 1 (+ (fib (- N 1)) (fib (- N 2))))))) (fib 1))").unwrap();
+    assert_eq!(actual, val::m_double(1.0));
+}
+
+// #[test]
+// fn stack_no_blow_2() {
+//     let actual = run_program(
+//         r#"
+// (do (def! fib (fn* (N) (do (println N) (if (= N 0) 1 (if (= N 1) 1 (+ (fib (- N 1)) (fib (- N 2))))) ))) (fib 2))
+// "#,
+//     )
+//     .unwrap();
+//     assert_eq!(actual, val::m_double(1.0));
+// }
+
+#[test]
 fn fn_star_nested_closures() {
     let actual = run_program("( ( (fn* (a) (fn* (b) (+ a b))) 5) 7)").unwrap();
     assert_eq!(actual, val::m_double(12.0));
