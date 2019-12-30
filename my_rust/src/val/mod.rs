@@ -16,9 +16,9 @@ impl PartialEq for ClosureVal {
 
 #[derive(Clone)]
 pub struct LambdaVal {
-    env: Env,
-    params: Vec<String>,
-    body: MalVal,
+    pub env: Env,
+    pub params: Vec<String>,
+    pub body: MalVal,
 }
 
 impl PartialEq for LambdaVal {
@@ -56,6 +56,7 @@ pub enum EvalError {
     WrongNumberOfArgs,
     NotDefined(String),
     CannotEvaluate(MalVal),
+    InvalidAmp,
 }
 
 pub struct EnvType {

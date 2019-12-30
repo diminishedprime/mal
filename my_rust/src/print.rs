@@ -77,6 +77,7 @@ impl Debug for MalType {
 impl Display for EvalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            EvalError::InvalidAmp => write!(f, "Invalid & in function"),
             EvalError::UnevenNumberOfForms => write!(f, "Uneven number of forms"),
             EvalError::ParseError(s) => write!(f, "Parse error: {}", s),
             EvalError::CannotEvaluate(val) => write!(f, "Cannot evaluate form: {}", val),
