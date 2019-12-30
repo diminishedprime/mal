@@ -28,18 +28,50 @@ impl PartialEq for LambdaVal {
     }
 }
 
-#[derive(PartialEq, Clone)]
+impl PartialEq for MalType {
+    fn eq(&self, other: &Self) -> bool {
+        use MalType::{
+            Atom, Boolean, Closure, Double, Keyword, LString, Lambda, List, Map, Nil, Symbol,
+            Vector,
+        };
+        match (self, other) {
+            (Nil, Nil) => true,
+            (Double(a), Double(b)) => a == b,
+            (Boolean(a), Boolean(b)) => a == b,
+            (LString(a), LString(b)) => a == b,
+            (Symbol(a), Symbol(b)) => a == b,
+            (Keyword(a), Keyword(b)) => a == b,
+
+            (Vector(a), Vector(b)) => a == b,
+            (Vector(a), List(b)) => a == b,
+            (List(a), Vector(b)) => a == b,
+            (List(a), List(b)) => a == b,
+
+            (Map(a), Map(b)) => a == b,
+
+            (Atom(a), Atom(b)) => a == b,
+            (Closure(a), Closure(b)) => a == b,
+            (Lambda(a), Lambda(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum MalType {
-    Vector(Vec<MalVal>),
-    List(Vec<MalVal>),
-    Map(Vec<MalVal>),
+    Nil,
+    Double(f64),
+    Boolean(bool),
+    LString(String),
     Symbol(String),
     Keyword(String),
-    Boolean(bool),
-    Double(f64),
-    LString(String),
+
+    Vector(Vec<MalVal>),
+    List(Vec<MalVal>),
+
+    Map(Vec<MalVal>),
+
     Atom(RefCell<MalVal>),
-    Nil,
     Closure(ClosureVal),
     Lambda(LambdaVal),
 }
