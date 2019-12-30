@@ -58,11 +58,11 @@ fn fn_star_invoked_no_args() {
     assert_eq!(actual, val::m_double(3.0));
 }
 
-// #[test]
-// fn fn_star_not_invoked() {
-//     let actual = run_program("(fn* [a] a)").unwrap();
-//     assert_eq!(actual.is_lambda(), true);
-// }
+#[test]
+fn fn_star_not_invoked() {
+    let actual = run_program("(fn* [a] a)").unwrap();
+    assert_eq!(actual.is_lambda(), true);
+}
 
 #[test]
 fn if_true_only_eval_first() {
@@ -146,20 +146,26 @@ fn do_with_def_expr() {
     assert_eq!(actual, val::m_double(1.0));
 }
 
-// #[test]
-// fn create_atom() {
-//     let actual = run_program("(atom 3)").unwrap();
-//     assert_eq!(actual, val::m_atom(val::m_double(3.0)));
-// }
+#[test]
+fn create_atom() {
+    let actual = run_program("(atom 3)").unwrap();
+    assert_eq!(actual, val::m_atom(val::m_double(3.0)));
+}
 
-// #[test]
-// fn deref_atom() {
-//     let actual = run_program("(do (def! a (atom 3)) @a)").unwrap();
-//     assert_eq!(actual, val::m_double(3.0));
-// }
+#[test]
+fn deref_atom() {
+    let actual = run_program("(do (def! a (atom 3)) @a)").unwrap();
+    assert_eq!(actual, val::m_double(3.0));
+}
 
-// #[test]
-// fn reset_atom() {
-//     let actual = run_program("(do (def! a (atom 3)) (reset! a 4) @a)").unwrap();
-//     assert_eq!(actual, val::m_double(4.0));
-// }
+#[test]
+fn reset_atom() {
+    let actual = run_program("(do (def! a (atom 3)) (reset! a 4) @a)").unwrap();
+    assert_eq!(actual, val::m_double(4.0));
+}
+
+#[test]
+fn swap_atom() {
+    let actual = run_program("(do (def! a (atom 3)) (swap! a (fn* (a) (+ a 2))) @a)").unwrap();
+    assert_eq!(actual, val::m_double(5.0));
+}

@@ -38,6 +38,7 @@ pub enum MalType {
     Boolean(bool),
     Double(f64),
     LString(String),
+    Atom(RefCell<MalVal>),
     Nil,
     Closure(ClosureVal),
     Lambda(LambdaVal),
@@ -57,6 +58,8 @@ pub enum EvalError {
     NotDefined(String),
     CannotEvaluate(MalVal),
     InvalidAmp,
+    IOError(String),
+    WrongType(String),
 }
 
 pub struct EnvType {
@@ -102,6 +105,10 @@ pub fn m_string<S: Into<String>>(s: S) -> MalVal {
 
 pub fn m_keyword<S: Into<String>>(s: S) -> MalVal {
     Rc::new(MalType::Keyword(s.into()))
+}
+
+pub fn m_atom(val: MalVal) -> MalVal {
+    Rc::new(MalType::Atom(RefCell::new(val)))
 }
 
 pub fn m_lambda(env: Env, params: Vec<String>, body: MalVal) -> MalVal {

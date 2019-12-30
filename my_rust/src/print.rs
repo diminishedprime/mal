@@ -57,7 +57,7 @@ impl MalType {
             MalType::Keyword(kw) => format!(":{}", kw),
             MalType::Closure(f) => format!("#<fn {:p}>", f.0),
             MalType::Lambda(_) => format!("#<lambda>"),
-            // MalType::Atom(a) => format!("(atom {})", a),
+            MalType::Atom(a) => format!("(atom {})", a.borrow()), // MalType::Atom(a) => format!("(atom {})", a),
         }
     }
 }
@@ -77,6 +77,8 @@ impl Debug for MalType {
 impl Display for EvalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            EvalError::IOError(e) => write!(f, "IOError: {}", e),
+            EvalError::WrongType(e) => write!(f, "WrongType: {}", e),
             EvalError::InvalidAmp => write!(f, "Invalid & in function"),
             EvalError::UnevenNumberOfForms => write!(f, "Uneven number of forms"),
             EvalError::ParseError(s) => write!(f, "Parse error: {}", s),
