@@ -1,23 +1,15 @@
 extern crate nom;
 
-pub mod ast;
 pub mod eval;
 pub mod parser;
 pub mod print;
 pub mod read;
-mod val;
+pub mod val;
 
-use eval::env;
-use eval::EvalResult;
+use val::EvalResult;
 
 pub fn repl() -> EvalResult<()> {
-    let env = env::Env::new()?;
-    eval::eval(
-        env.clone(),
-        parser::parse(
-            "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))",
-        )?,
-    )?;
+    let env = crate::val::m_env(None);
     loop {
         let loop_result = read::read("user> ")
             .and_then(|read_val| parser::parse(&read_val))

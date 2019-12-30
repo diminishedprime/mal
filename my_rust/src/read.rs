@@ -1,4 +1,4 @@
-use crate::eval::EvalResult;
+use crate::val::EvalResult;
 use std::io;
 use std::io::Write;
 use std::process;
@@ -14,6 +14,6 @@ pub fn read(prompt: &str) -> EvalResult<String> {
         }
         Ok(input.trim().to_string())
     } else {
-        Err("could not read from stdin for some reason".to_string())
+        Err(crate::val::EvalError::ReadError)
     }
 }

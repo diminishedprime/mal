@@ -1,6 +1,6 @@
 extern crate mal;
 
-use mal::eval::EvalResult;
+use mal::val::EvalResult;
 
 fn main() -> EvalResult<()> {
     mal::repl()
