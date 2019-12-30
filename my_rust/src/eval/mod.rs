@@ -18,10 +18,7 @@ pub fn eval(env: Env, program: MalVal) -> EvalResult<MalVal> {
     'eval_loop: loop {
         match *program {
             MalType::Symbol(ref a) => {
-                return Ok(env
-                    .borrow()
-                    .get(a)
-                    .ok_or(EvalError::NotDefined(a.to_string()))?)
+                return Ok(env.get(a).ok_or(EvalError::NotDefined(a.to_string()))?)
             }
             MalType::Vector(ref a) => {
                 let new_contents = a
@@ -58,7 +55,7 @@ pub fn eval(env: Env, program: MalVal) -> EvalResult<MalVal> {
                                 body,
                                 env: lambda_env,
                             } = lambda_val;
-                            let lambda_env = val::m_env(Some(lambda_env.clone()));
+                            let mut lambda_env = val::m_env(Some(lambda_env.clone()));
                             let has_rest = params.iter().find(|p| *p == "&").is_some();
                             let args = rest.collect::<Vec<_>>();
                             if !has_rest && params.len() != args.len() {
@@ -82,7 +79,7 @@ pub fn eval(env: Env, program: MalVal) -> EvalResult<MalVal> {
                                     if params.next().is_some() {
                                         return Err(EvalError::InvalidAmp);
                                     }
-                                    lambda_env.borrow_mut().set(
+                                    lambda_env.set(
                                         param.unwrap().to_string(),
                                         val::m_list(args.collect::<Vec<_>>()),
                                     )?;
@@ -90,7 +87,7 @@ pub fn eval(env: Env, program: MalVal) -> EvalResult<MalVal> {
                                 }
                                 // unwrap is safe because we know there's <= params than args
                                 let arg = args.next().unwrap();
-                                lambda_env.borrow_mut().set(param.clone(), arg)?;
+                                lambda_env.set(param.clone(), arg)?;
                             }
                             program = body.clone();
                             env = lambda_env.clone();
@@ -133,7 +130,7 @@ pub fn eval(env: Env, program: MalVal) -> EvalResult<MalVal> {
                                         util::two_args("def", rest.map(|r| r.clone()))?;
                                     let first = unwrap_symbol(first)?;
                                     let second = eval(env.clone(), second)?;
-                                    return env.borrow_mut().set(first, second);
+                                    return env.set(first, second);
                                 }
                                 "fn*" => {
                                     let (params, body) =
@@ -149,7 +146,7 @@ pub fn eval(env: Env, program: MalVal) -> EvalResult<MalVal> {
                                         util::two_args("let*", rest.map(|r| r.clone()))?;
                                     let bindings = unwrap_list(bindings)?;
                                     let mut bindings = bindings.iter();
-                                    let let_star_env = val::m_env(Some(env));
+                                    let mut let_star_env = val::m_env(Some(env));
                                     loop {
                                         let name = bindings.next();
                                         let binding = bindings.next();
@@ -159,9 +156,7 @@ pub fn eval(env: Env, program: MalVal) -> EvalResult<MalVal> {
                                                 let name = unwrap_symbol(name.clone())?;
                                                 let value =
                                                     eval(let_star_env.clone(), expr.clone())?;
-                                                let_star_env
-                                                    .borrow_mut()
-                                                    .set(name.to_string(), value)?;
+                                                let_star_env.set(name.to_string(), value)?;
                                             }
                                             (_, _) => return Err(EvalError::UnevenNumberOfForms),
                                         }
@@ -172,7 +167,7 @@ pub fn eval(env: Env, program: MalVal) -> EvalResult<MalVal> {
                                 }
                                 _ => (),
                             };
-                            let value = env.borrow().get(symbol);
+                            let value = env.get(symbol);
                             match value {
                                 None => return Err(EvalError::NotDefined(symbol.to_string())),
                                 Some(value) => match &*value {

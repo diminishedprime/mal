@@ -4,7 +4,7 @@ use crate::val;
 #[test]
 fn parse_env_symbol_names() {
     let env = val::m_env(None);
-    env.borrow().keys().iter().for_each(|key| {
+    env.keys().iter().for_each(|key| {
         let actual = parse(key).unwrap();
         assert_eq!(actual, val::m_symbol(key))
     });

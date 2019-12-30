@@ -12,7 +12,7 @@ use crate::val::MalVal;
 impl EnvType {
     pub fn keys(&self) -> Vec<String> {
         let parent_keys: Vec<String> = match &self.parent {
-            Some(env) => env.clone().borrow().keys(),
+            Some(env) => env.keys(),
             None => vec![],
         };
         self.env
@@ -26,7 +26,7 @@ impl EnvType {
         match self.env.get(key) {
             Some(val) => return Some(val.clone()),
             None => match &self.parent {
-                Some(env) => env.borrow().get(&key),
+                Some(env) => env.get(&key),
                 None => None,
             },
         }

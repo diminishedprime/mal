@@ -101,7 +101,27 @@ pub struct EnvType {
 
 pub type EvalResult<T> = Result<T, EvalError>;
 
-pub type Env = Rc<RefCell<EnvType>>;
+pub struct Env(Rc<RefCell<EnvType>>);
+
+impl Clone for Env {
+    fn clone(&self) -> Self {
+        Env(self.0.clone())
+    }
+}
+
+impl Env {
+    pub fn keys(&self) -> Vec<String> {
+        self.0.borrow().keys()
+    }
+
+    pub fn get(&self, key: &str) -> Option<MalVal> {
+        self.0.borrow().get(key)
+    }
+
+    pub fn set(&mut self, key: String, value: MalVal) -> EvalResult<MalVal> {
+        self.0.borrow_mut().set(key, value)
+    }
+}
 
 pub fn m_bool(b: bool) -> MalVal {
     Rc::new(MalType::Boolean(b))
@@ -154,5 +174,5 @@ pub fn m_env(parent: Option<Env>) -> Env {
     } else {
         crate::eval::env::standard_library::with_standard_library()
     };
-    Rc::new(RefCell::new(EnvType { env, parent }))
+    Env(Rc::new(RefCell::new(EnvType { env, parent })))
 }
