@@ -1,9 +1,9 @@
 use super::*;
-use crate::val;
+use crate::val::Env;
 
 #[test]
 fn parse_env_symbol_names() {
-    let env = val::m_env(None);
+    let env = Env::with_standard_library();
     env.keys().iter().for_each(|key| {
         let actual = parse(key).unwrap();
         assert_eq!(actual, val::m_symbol(key))

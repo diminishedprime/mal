@@ -3,8 +3,6 @@ pub mod standard_library;
 mod tests;
 pub mod util;
 
-use crate::val;
-use crate::val::Env;
 use crate::val::EnvType;
 use crate::val::EvalResult;
 use crate::val::MalVal;
@@ -36,10 +34,5 @@ impl EnvType {
         // TODO - there should be a special set for def that goes up to the topmost level.
         self.env.insert(key.clone(), value.clone());
         Ok(value)
-    }
-
-    pub fn with_scope(current_scope: Env) -> Env {
-        let new_scope = val::m_env(Some(current_scope.clone()));
-        new_scope
     }
 }

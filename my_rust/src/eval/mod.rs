@@ -55,7 +55,7 @@ pub fn eval(env: Env, program: MalVal) -> EvalResult<MalVal> {
                                 body,
                                 env: lambda_env,
                             } = lambda_val;
-                            let mut lambda_env = val::m_env(Some(lambda_env.clone()));
+                            let mut lambda_env = lambda_env.clone();
                             let has_rest = params.iter().find(|p| *p == "&").is_some();
                             let args = rest.collect::<Vec<_>>();
                             if !has_rest && params.len() != args.len() {
@@ -139,14 +139,14 @@ pub fn eval(env: Env, program: MalVal) -> EvalResult<MalVal> {
                                         .iter()
                                         .map(|item| unwrap_symbol(item.clone()))
                                         .collect::<EvalResult<Vec<_>>>()?;
-                                    return Ok(val::m_lambda(env.clone(), params, body));
+                                    return Ok(val::m_lambda(env.push(), params, body));
                                 }
                                 "let*" => {
                                     let (bindings, expr) =
                                         util::two_args("let*", rest.map(|r| r.clone()))?;
                                     let bindings = unwrap_list(bindings)?;
                                     let mut bindings = bindings.iter();
-                                    let mut let_star_env = val::m_env(Some(env));
+                                    let mut let_star_env = env.push();
                                     loop {
                                         let name = bindings.next();
                                         let binding = bindings.next();

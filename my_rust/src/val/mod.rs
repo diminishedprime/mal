@@ -121,6 +121,24 @@ impl Env {
     pub fn set(&mut self, key: String, value: MalVal) -> EvalResult<MalVal> {
         self.0.borrow_mut().set(key, value)
     }
+
+    pub fn empty() -> Self {
+        let parent = None;
+        let env = hashmap![];
+        Env(Rc::new(RefCell::new(EnvType { env, parent })))
+    }
+
+    pub fn with_standard_library() -> Self {
+        let parent = None;
+        let env = crate::eval::env::standard_library::with_standard_library();
+        Env(Rc::new(RefCell::new(EnvType { env, parent })))
+    }
+
+    pub fn push(&self) -> Self {
+        let parent = Some(self.clone());
+        let env = hashmap![];
+        Env(Rc::new(RefCell::new(EnvType { env, parent })))
+    }
 }
 
 pub fn m_bool(b: bool) -> MalVal {
@@ -165,14 +183,4 @@ pub fn m_atom(val: MalVal) -> MalVal {
 
 pub fn m_lambda(env: Env, params: Vec<String>, body: MalVal) -> MalVal {
     Rc::new(MalType::Lambda(LambdaVal { env, params, body }))
-}
-
-pub fn m_env(parent: Option<Env>) -> Env {
-    // TODO if parent is None, add in the stdlib.
-    let env = if parent.is_some() {
-        hashmap![]
-    } else {
-        crate::eval::env::standard_library::with_standard_library()
-    };
-    Env(Rc::new(RefCell::new(EnvType { env, parent })))
 }

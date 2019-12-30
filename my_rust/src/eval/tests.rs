@@ -1,12 +1,13 @@
 use super::*;
 use crate::parser::parse;
 use crate::val;
+use crate::val::Env;
 use crate::val::EvalResult;
 use crate::val::MalVal;
 
 fn run_program(program: &str) -> EvalResult<MalVal> {
     let program = parse(program)?;
-    eval(val::m_env(None), program)
+    eval(Env::with_standard_library(), program)
 }
 
 #[test]

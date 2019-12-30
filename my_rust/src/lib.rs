@@ -9,7 +9,7 @@ pub mod val;
 use val::EvalResult;
 
 pub fn repl() -> EvalResult<()> {
-    let env = crate::val::m_env(None);
+    let env = crate::val::Env::with_standard_library();
     loop {
         let loop_result = read::read("user> ")
             .and_then(|read_val| parser::parse(&read_val))
